@@ -1,0 +1,13 @@
+[package]
+name = "cubism-core-sys"
+version = "0.1.0"
+authors = ["Lukas Wirth <lukastw97@gmail.com>"]
+edition = "2018"
+repository = "https://github.com/Veykril/cubism-rs"
+homepage = "https://github.com/Veykril/cubism-rs"
+license = "MIT OR Apache-2.0"
+description = "Raw ffi bindings for Live2d Cubism Core"
+keywords = ["live2d", "api-bindings", "cubism"]
+categories = ["external-ffi-bindings"]
+build = "build.rs"
+links = "Live2DCubismCore"

@@ -1,0 +1,15 @@
+[package]
+name = "cubism-core"
+version = "0.1.0"
+authors = ["Lukas Wirth <lukastw97@gmail.com>"]
+edition = "2018"
+repository = "https://github.com/Veykril/cubism-rs"
+homepage = "https://github.com/Veykril/cubism-rs"
+license = "MIT OR Apache-2.0"
+description = "Rust bindings for Live2d Cubism Core"
+keywords = ["live2d", "api-bindings", "cubism"]
+categories = ["api-bindings"]
+
+[dependencies]
+ffi = { package = "cubism-core-sys", version = "0.1.0", path = "../cubism-core-sys"}
+bitflags = "^1.1"

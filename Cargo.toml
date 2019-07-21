@@ -1,0 +1,17 @@
+[package]
+name = "cubism"
+version = "0.1.0"
+authors = ["Lukas Wirth <lukastw97@gmail.com>"]
+edition = "2018"
+repository = "https://github.com/Veykril/cubism-rs"
+homepage = "https://github.com/Veykril/cubism-rs"
+license = "MIT OR Apache-2.0"
+description = "A high level framework for the cubism sdk"
+keywords = ["live2d", "api-bindings", "cubism"]
+categories = ["api-bindings"]
+
+[dependencies]
+cubism-core = { version = "0.1.0", path = "cubism-core"}
+
+[workspace]
+members = ["cubism-core-sys", "cubism-core"]
