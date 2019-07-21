@@ -1,5 +1,4 @@
-use std::env;
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 
 fn main() {
     println!("cargo:rerun-if-env-changed=CUBISM_CORE");
@@ -18,7 +17,7 @@ fn main() {
          Please set it to your Live2DCubismCore directory before compiling. \
          See the readme for more information.",
     );
-    lib_dir.push("lib");
+    lib_dir.push("Core/lib");
     match (vendor, sys) {
         ("pc", "windows") => {
             lib_dir.push("windows");
@@ -28,20 +27,20 @@ fn main() {
                 _ => panic!("unknown windows architecture: {}", arch),
             });
             lib_dir.push("140");
-        }
+        },
         ("apple", "darwin") => {
             lib_dir.push("macos");
-        }
+        },
         ("apple", "ios") => {
             unimplemented!("TODO: implement ios linking");
-        }
+        },
         ("unknown", "linux") => {
             lib_dir.push("linux");
             lib_dir.push(match arch {
                 "x86_64" => "x86_64",
                 _ => panic!("linux is only supported on x86_64"),
             });
-        }
+        },
         ("linux", "android") | ("linux", "androideabi") => {
             lib_dir.push("android");
             lib_dir.push(match arch {
@@ -50,7 +49,7 @@ fn main() {
                 "aarch64" => "arm64-v8a",
                 _ => panic!("unsupported android architecture: {}", arch),
             });
-        }
+        },
         _ => panic!(
             "unsupported target triple: {}-{}-{}-{}",
             arch, vendor, sys, abi
