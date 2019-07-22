@@ -1,5 +1,5 @@
 use core::{iter, mem, ops, ptr::NonNull, slice};
-use std::rc::Rc;
+use std::sync::Arc;
 
 use ffi::csmModel;
 
@@ -18,7 +18,7 @@ use crate::{error::CubismResult, mem::AlignedMemory, moc::Moc, ConstantFlags, Dy
 #[derive(Debug)]
 pub struct Model {
     mem: AlignedMemory<csmModel>,
-    moc: Rc<Moc>,
+    moc: Arc<Moc>,
     param_val: NonNull<[f32]>,
     part_opacities: NonNull<[f32]>,
     drawable_count: usize,
@@ -28,7 +28,7 @@ impl Model {
     /// Creates a model instance from bytes.
     #[inline]
     pub fn from_bytes<R: AsRef<[u8]>>(data: R) -> CubismResult<Self> {
-        unsafe { Moc::new(data.as_ref()).map(|(moc, mem)| Self::new_impl(Rc::new(moc), mem)) }
+        unsafe { Moc::new(data.as_ref()).map(|(moc, mem)| Self::new_impl(Arc::new(moc), mem)) }
     }
 
     pub fn parameter(&self, name: &str) -> Option<Parameter> {
@@ -379,7 +379,7 @@ impl Model {
 }
 
 impl Model {
-    unsafe fn new_impl(moc: Rc<Moc>, mem: AlignedMemory<ffi::csmModel>) -> Model {
+    unsafe fn new_impl(moc: Arc<Moc>, mem: AlignedMemory<ffi::csmModel>) -> Model {
         let param_values = NonNull::from(slice::from_raw_parts_mut(
             ffi::csmGetParameterValues(mem.as_ptr()),
             moc.parameter_count(),
@@ -421,6 +421,9 @@ impl ops::Deref for Model {
     }
 }
 
+unsafe impl Send for Model {}
+unsafe impl Sync for Model {}
+
 #[derive(Copy, Clone, Debug)]
 pub struct Parameter<'model> {
     pub id: &'model str,
@@ -451,6 +454,7 @@ pub struct PartMut<'model> {
     pub opacity: &'model mut f32,
 }
 
+#[derive(Clone)]
 pub struct ParameterIter<'model> {
     model: &'model Model,
     idx: usize,
@@ -505,6 +509,7 @@ impl<'model> Iterator for ParameterIterMut<'model> {
     }
 }
 
+#[derive(Clone)]
 pub struct PartIter<'model> {
     model: &'model Model,
     idx: usize,

@@ -169,3 +169,6 @@ impl Moc {
         }
     }
 }
+
+unsafe impl Send for Moc {}
+unsafe impl Sync for Moc {}
