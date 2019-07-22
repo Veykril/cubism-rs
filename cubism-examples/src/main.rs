@@ -11,7 +11,6 @@ use std::{
 };
 
 fn init_imgui(imgui: &mut Context, display: &Display) -> (WinitPlatform, Renderer) {
-    // imgui
     imgui.set_ini_filename(None);
     let mut platform = WinitPlatform::init(imgui);
     let gl_window = display.gl_window();
@@ -42,29 +41,36 @@ fn load_texture(display: &Display, path: &Path) -> CompressedSrgbTexture2d {
 }
 
 fn main() {
+    cubism::core::set_core_logger(|s| println!("{}", s));
     let res_path = PathBuf::from_iter(&[env!("CUBISM_CORE"), "Samples/Res"]);
 
+    // Create window and glutin context
     let mut events_loop = glutin::EventsLoop::new();
     let wb = glutin::WindowBuilder::new();
     let cb = glutin::ContextBuilder::new().with_vsync(true);
     let display = glium::Display::new(wb, cb, &events_loop).unwrap();
 
+    // Init Imgui and its renderer
     let mut imgui = Context::create();
     let (mut platform, mut imgui_renderer) = init_imgui(&mut imgui, &display);
 
+    // Load textures
     let tex0 = load_texture(&display, &res_path.join("Haru/Haru.2048/texture_00.png"));
     let tex1 = load_texture(&display, &res_path.join("Haru/Haru.2048/texture_01.png"));
     let textures = [tex0, tex1];
 
+    // Load our cubism model
     let mut haru = cubism::core::Model::from_bytes(
         &std::fs::read(&res_path.join("Haru/Haru.moc3")).unwrap()[..],
     )
     .unwrap();
     let mut model_renderer = cubism_core_glium_renderer::Renderer::new(&display).unwrap();
 
-    let mut last_frame = Instant::now();
     let gl_window = display.gl_window();
     let window = gl_window.window();
+
+    // Create ImStrings versions of the ids outside of the loop to prevent constant
+    // reallocations
     let str_char_params = ImString::new("CharParams");
     let str_char_parts = ImString::new("CharParts");
     let parameter_names = haru
@@ -77,6 +83,7 @@ fn main() {
         .iter()
         .map(|id| ImString::new(*id))
         .collect::<Vec<_>>();
+    let mut last_frame = Instant::now();
     loop {
         let mut exit = false;
         events_loop.poll_events(|event| {
@@ -99,6 +106,7 @@ fn main() {
             .expect("Failed to start frame");
         last_frame = io.update_delta_time(last_frame);
         let ui = imgui.frame();
+        // Show sliders for all our parameters and parts
         ui.window(&str_char_params)
             .size([300.0, 100.0], Condition::FirstUseEver)
             .build(|| {
@@ -116,18 +124,22 @@ fn main() {
             });
         haru.update();
 
-        // drawing a frame
+        // Start the rendering
         let mut target = display.draw();
         target.clear_color_srgb(1.0, 1.0, 1.0, 1.0);
+        // Render our model
         model_renderer
             .draw_model(&mut target, &haru, &textures)
             .unwrap();
 
+        // Render the imgui windows
         platform.prepare_render(&ui, window);
         let draw_data = ui.render();
         imgui_renderer
             .render(&mut target, draw_data)
             .expect("Rendering failed");
+
+        // Finish the rendering
         target.finish().unwrap();
     }
 }

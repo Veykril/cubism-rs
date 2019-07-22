@@ -21,7 +21,6 @@ pub struct Model {
     moc: Arc<Moc>,
     param_val: NonNull<[f32]>,
     part_opacities: NonNull<[f32]>,
-    drawable_count: usize,
 }
 
 impl Model {
@@ -31,6 +30,8 @@ impl Model {
         unsafe { Moc::new(data.as_ref()).map(|(moc, mem)| Self::new_impl(Arc::new(moc), mem)) }
     }
 
+    /// Returns the first parameter with the given name, or `None` if there is
+    /// none with the given name.
     pub fn parameter(&self, name: &str) -> Option<Parameter> {
         self.parameter_ids()
             .iter()
@@ -44,6 +45,8 @@ impl Model {
             })
     }
 
+    /// Returns the first parameter with the given name, or `None` if there is
+    /// none with the given name.
     pub fn parameter_mut(&mut self, name: &str) -> Option<ParameterMut> {
         if let Some(idx) = self.parameter_ids().iter().position(|id| *id == name) {
             Some(self.parameter_at_mut(idx))
@@ -52,6 +55,10 @@ impl Model {
         }
     }
 
+    /// Returns the parameter at the specified idx.
+    ///
+    /// # Panics
+    /// Panics on out of bounds access.
     pub fn parameter_at(&self, idx: usize) -> Parameter {
         // Do manual bounds checking since all slices have the same length
         assert!(idx < self.parameter_count());
@@ -66,6 +73,10 @@ impl Model {
         }
     }
 
+    /// Returns the parameter at the specified idx.
+    ///
+    /// # Panics
+    /// Panics on out of bounds access.
     pub fn parameter_at_mut(&mut self, idx: usize) -> ParameterMut {
         // Do manual bounds checking since all slices have the same length
         assert!(idx < self.parameter_count());
@@ -83,6 +94,8 @@ impl Model {
         }
     }
 
+    /// Returns the first part with the given name, or `None` if there is none
+    /// with the given name.
     pub fn part(&self, name: &str) -> Option<Part> {
         self.part_ids().iter().enumerate().find_map(|(idx, id)| {
             if *id == name {
@@ -93,6 +106,8 @@ impl Model {
         })
     }
 
+    /// Returns the first part with the given name, or `None` if there is none
+    /// with the given name.
     pub fn part_mut(&mut self, name: &str) -> Option<PartMut> {
         if let Some(idx) = self.part_ids().iter().position(|id| *id == name) {
             Some(self.part_at_mut(idx))
@@ -101,6 +116,10 @@ impl Model {
         }
     }
 
+    /// Returns the parameter at the specified idx.
+    ///
+    /// # Panics
+    /// Panics on out of bounds access.
     #[inline]
     pub fn part_at(&self, idx: usize) -> Part {
         Part {
@@ -109,6 +128,10 @@ impl Model {
         }
     }
 
+    /// Returns the parameter at the specified idx.
+    ///
+    /// # Panics
+    /// Panics on out of bounds access.
     #[inline]
     pub fn part_at_mut(&mut self, idx: usize) -> PartMut {
         PartMut {
@@ -117,37 +140,43 @@ impl Model {
         }
     }
 
-    /// Returns the parameter values.
+    /// Returns the model's parameter values.
     #[inline]
     pub fn parameter_values(&self) -> &[f32] {
         unsafe { self.param_val.as_ref() }
     }
 
-    /// Returns a mutable slice of the parameter values.
+    /// Returns a mutable slice of the model's  parameter values.
     #[inline]
     pub fn parameter_values_mut(&mut self) -> &mut [f32] {
         unsafe { self.param_val.as_mut() }
     }
 
     /// Sets the parameter value at index `idx` to `val`.
+    ///
+    /// # Panics
+    /// Panics on out of bounds access.
     #[inline]
     pub fn set_parameter_value(&mut self, idx: usize, val: f32) {
         self.parameter_values_mut()[idx] = val;
     }
 
-    /// Returns the part opacities.
+    /// Returns the model's part opacities.
     #[inline]
     pub fn part_opacities(&self) -> &[f32] {
         unsafe { self.part_opacities.as_ref() }
     }
 
-    /// Returns a mutable slice of the part opacities.
+    /// Returns a mutable slice of the model's part opacities.
     #[inline]
     pub fn part_opacities_mut(&mut self) -> &mut [f32] {
         unsafe { self.part_opacities.as_mut() }
     }
 
     /// Sets the part opacity at index `idx` to `val`.
+    ///
+    /// # Panics
+    /// Panics on out of bounds access.
     #[inline]
     pub fn set_part_opacity(&mut self, idx: usize, val: f32) {
         self.part_opacities_mut()[idx] = val;
@@ -177,19 +206,13 @@ impl Model {
         (size, origin, ppu)
     }
 
-    /// Returns the number of drawables of this model.
-    #[inline]
-    pub fn drawable_count(&self) -> usize {
-        self.drawable_count
-    }
-
     /// Returns the render orders of the drawables.
     #[inline]
     pub fn drawable_render_orders(&self) -> &[i32] {
         unsafe {
             slice::from_raw_parts(
                 ffi::csmGetDrawableRenderOrders(self.as_ptr()),
-                self.drawable_count,
+                self.drawable_count(),
             )
         }
     }
@@ -200,7 +223,7 @@ impl Model {
         unsafe {
             slice::from_raw_parts(
                 ffi::csmGetDrawableDrawOrders(self.as_ptr()),
-                self.drawable_count,
+                self.drawable_count(),
             )
         }
     }
@@ -211,7 +234,7 @@ impl Model {
         unsafe {
             slice::from_raw_parts(
                 ffi::csmGetDrawableTextureIndices(self.as_ptr()),
-                self.drawable_count,
+                self.drawable_count(),
             )
         }
     }
@@ -222,7 +245,7 @@ impl Model {
         unsafe {
             slice::from_raw_parts(
                 ffi::csmGetDrawableIndexCounts(self.as_ptr()),
-                self.drawable_count,
+                self.drawable_count(),
             )
         }
     }
@@ -244,7 +267,7 @@ impl Model {
         unsafe {
             slice::from_raw_parts(
                 ffi::csmGetDrawableVertexCounts(self.as_ptr()),
-                self.drawable_count,
+                self.drawable_count(),
             )
         }
     }
@@ -277,7 +300,7 @@ impl Model {
         unsafe {
             slice::from_raw_parts(
                 ffi::csmGetDrawableOpacities(self.as_ptr()),
-                self.drawable_count,
+                self.drawable_count(),
             )
         }
     }
@@ -287,7 +310,7 @@ impl Model {
         unsafe {
             slice::from_raw_parts(
                 ffi::csmGetDrawableMaskCounts(self.as_ptr()),
-                self.drawable_count,
+                self.drawable_count(),
             )
         }
     }
@@ -297,8 +320,10 @@ impl Model {
     pub fn drawable_masks(&self, idx: usize) -> &[i32] {
         unsafe {
             slice::from_raw_parts(
-                slice::from_raw_parts(ffi::csmGetDrawableMasks(self.as_ptr()), self.drawable_count)
-                    [idx] as *const _,
+                slice::from_raw_parts(
+                    ffi::csmGetDrawableMasks(self.as_ptr()),
+                    self.drawable_count(),
+                )[idx] as *const _,
                 self.drawable_mask_counts()[idx] as usize,
             )
         }
@@ -316,7 +341,7 @@ impl Model {
         unsafe {
             slice::from_raw_parts(
                 ffi::csmGetDrawableConstantFlags(self.as_ptr()) as *const ConstantFlags,
-                self.drawable_count,
+                self.drawable_count(),
             )
         }
     }
@@ -327,7 +352,7 @@ impl Model {
         unsafe {
             slice::from_raw_parts(
                 ffi::csmGetDrawableDynamicFlags(self.as_ptr()) as *const DynamicFlags,
-                self.drawable_count,
+                self.drawable_count(),
             )
         }
     }
@@ -341,10 +366,11 @@ impl Model {
     /// Returns the raw
     /// [csmModel](../cubism_core_sys/model/struct.csmModel.html) ptr.
     #[inline]
-    pub(in crate) fn as_ptr(&self) -> *mut csmModel {
+    pub fn as_ptr(&self) -> *mut csmModel {
         self.mem.as_ptr()
     }
 
+    /// Returns an iterator over the model's parameters.
     #[inline]
     pub fn parameters(&self) -> ParameterIter {
         ParameterIter {
@@ -353,6 +379,7 @@ impl Model {
         }
     }
 
+    /// Returns an iterator over the model's parameters.
     #[inline]
     pub fn parameters_mut(&mut self) -> ParameterIterMut {
         ParameterIterMut {
@@ -361,6 +388,7 @@ impl Model {
         }
     }
 
+    /// Returns an iterator over the model's parts.
     #[inline]
     pub fn parts(&self) -> PartIter {
         PartIter {
@@ -369,6 +397,7 @@ impl Model {
         }
     }
 
+    /// Returns an iterator over the model's parts.
     #[inline]
     pub fn parts_mut(&mut self) -> PartIterMut {
         PartIterMut {
@@ -388,14 +417,12 @@ impl Model {
             ffi::csmGetPartOpacities(mem.as_ptr()),
             moc.part_count(),
         ));
-        let drawable_count = ffi::csmGetDrawableCount(mem.as_ptr()) as usize;
 
         Model {
             mem,
             moc,
             param_val: param_values,
             part_opacities,
-            drawable_count,
         }
     }
 }
@@ -424,6 +451,7 @@ impl ops::Deref for Model {
 unsafe impl Send for Model {}
 unsafe impl Sync for Model {}
 
+/// A parameter of a model.
 #[derive(Copy, Clone, Debug)]
 pub struct Parameter<'model> {
     pub id: &'model str,
@@ -433,6 +461,7 @@ pub struct Parameter<'model> {
     pub default_value: f32,
 }
 
+/// A parameter of a model.
 #[derive(Debug)]
 pub struct ParameterMut<'model> {
     pub id: &'model str,
@@ -442,18 +471,21 @@ pub struct ParameterMut<'model> {
     pub default_value: f32,
 }
 
+/// A part of a model.
 #[derive(Copy, Clone, Debug)]
 pub struct Part<'model> {
     pub id: &'model str,
     pub opacity: f32,
 }
 
+/// A part of a model.
 #[derive(Debug)]
 pub struct PartMut<'model> {
     pub id: &'model str,
     pub opacity: &'model mut f32,
 }
 
+/// An iterator that iterates over a model's parameters.
 #[derive(Clone)]
 pub struct ParameterIter<'model> {
     model: &'model Model,
@@ -481,6 +513,7 @@ impl<'model> Iterator for ParameterIter<'model> {
     }
 }
 
+/// An iterator that iterates over a model's parameters.
 pub struct ParameterIterMut<'model> {
     model: &'model mut Model,
     idx: usize,
@@ -509,6 +542,7 @@ impl<'model> Iterator for ParameterIterMut<'model> {
     }
 }
 
+/// An iterator that iterates over a model's parts.
 #[derive(Clone)]
 pub struct PartIter<'model> {
     model: &'model Model,
@@ -536,6 +570,7 @@ impl<'model> Iterator for PartIter<'model> {
     }
 }
 
+/// An iterator that iterates over a model's parts.
 pub struct PartIterMut<'model> {
     model: &'model mut Model,
     idx: usize,

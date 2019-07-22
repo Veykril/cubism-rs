@@ -9,8 +9,12 @@ pub type CubismResult<T> = std::result::Result<T, CubismError>;
 pub enum CubismError {
     /// The moc version of the data passed to [`Model::from_bytes`] is too old
     /// and therefore cannot be used.
+    ///
+    /// [`Model::from_bytes`]: ../struct.Model.html#method.from_bytes
     MocVersionMismatch(u32),
     /// The moc data passed to [`Model::from_bytes`] was invalid.
+    ///
+    /// [`Model::from_bytes`]: ../struct.Model.html#method.from_bytes
     InvalidMocData,
 }
 

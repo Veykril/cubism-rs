@@ -27,16 +27,16 @@ pub struct Moc {
 }
 
 impl Moc {
-    /// Returns the part names.
-    #[inline]
-    pub fn part_ids<'moc>(&'moc self) -> &[&'moc str] {
-        &self.part_ids
-    }
-
     /// Returns the parameter names.
     #[inline]
     pub fn parameter_ids<'moc>(&'moc self) -> &[&'moc str] {
         &self.param_ids
+    }
+
+    /// Returns the part names.
+    #[inline]
+    pub fn part_ids<'moc>(&'moc self) -> &[&'moc str] {
+        &self.part_ids
     }
 
     /// Returns the drawable names.
@@ -73,6 +73,12 @@ impl Moc {
     #[inline]
     pub fn part_count(&self) -> usize {
         self.part_ids.len()
+    }
+
+    /// Returns the number of drawables this moc has.
+    #[inline]
+    pub fn drawable_count(&self) -> usize {
+        self.drawable_ids.len()
     }
 
     /// Returns the raw [csmMoc](../cubism_core_sys/moc/struct.csmMoc.html) ptr
