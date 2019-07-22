@@ -14,4 +14,4 @@ categories = ["api-bindings"]
 cubism-core = { version = "0.1.0", path = "cubism-core"}
 
 [workspace]
-members = ["cubism-core-sys", "cubism-core"]
+members = ["cubism-core-sys", "cubism-core", "cubism-core-glium-renderer", "cubism-examples"]
