@@ -102,23 +102,16 @@ fn main() {
         ui.window(&str_char_params)
             .size([300.0, 100.0], Condition::FirstUseEver)
             .build(|| {
-                for idx in 0..haru.parameter_count() {
-                    let min = haru.parameter_min()[idx];
-                    let max = haru.parameter_max()[idx];
-                    ui.slider_float(
-                        &parameter_names[idx],
-                        &mut haru.parameter_values_mut()[idx],
-                        min,
-                        max,
-                    )
-                    .build();
+                for (param, name) in haru.parameters_mut().zip(&parameter_names) {
+                    ui.slider_float(name, param.value, param.min_value, param.max_value)
+                        .build();
                 }
             });
         ui.window(&str_char_parts)
             .size([300.0, 100.0], Condition::FirstUseEver)
             .build(|| {
-                for (part, opacity) in part_names.iter().zip(haru.part_opacities_mut()) {
-                    ui.slider_float(part, opacity, 0.0, 1.0).build();
+                for (opacity, name) in haru.part_opacities_mut().iter_mut().zip(&part_names) {
+                    ui.slider_float(name, opacity, 0.0, 1.0).build();
                 }
             });
         haru.update();

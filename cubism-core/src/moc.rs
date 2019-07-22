@@ -18,9 +18,9 @@ static INVALID_ID_STR: &str = "NON_UTF8_ID";
 #[derive(Debug)]
 pub struct Moc {
     mem: AlignedMemory<csmMoc>,
-    part_ids: Vec<&'static str>,
-    param_ids: Vec<&'static str>,
-    drawable_ids: Vec<&'static str>,
+    pub(in crate) part_ids: Vec<&'static str>,
+    pub(in crate) param_ids: Vec<&'static str>,
+    pub(in crate) drawable_ids: Vec<&'static str>,
     param_def_val: NonNull<[f32]>,
     param_max_val: NonNull<[f32]>,
     param_min_val: NonNull<[f32]>,

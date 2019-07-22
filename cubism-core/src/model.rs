@@ -1,4 +1,4 @@
-use core::{ops, ptr::NonNull, slice};
+use core::{iter, mem, ops, ptr::NonNull, slice};
 use std::rc::Rc;
 
 use ffi::csmModel;
@@ -19,7 +19,7 @@ use crate::{error::CubismResult, mem::AlignedMemory, moc::Moc, ConstantFlags, Dy
 pub struct Model {
     mem: AlignedMemory<csmModel>,
     moc: Rc<Moc>,
-    param_values: NonNull<[f32]>,
+    param_val: NonNull<[f32]>,
     part_opacities: NonNull<[f32]>,
     drawable_count: usize,
 }
@@ -31,30 +31,102 @@ impl Model {
         unsafe { Moc::new(data.as_ref()).map(|(moc, mem)| Self::new_impl(Rc::new(moc), mem)) }
     }
 
-    /// Returns the parameter index of `name` or `None` if the parameter name
-    /// does not exist in this model.
-    #[inline]
-    pub fn parameter_index(&self, name: &str) -> Option<usize> {
-        self.parameter_ids().iter().position(|id| *id == name)
+    pub fn parameter(&self, name: &str) -> Option<Parameter> {
+        self.parameter_ids()
+            .iter()
+            .enumerate()
+            .find_map(|(idx, id)| {
+                if *id == name {
+                    Some(self.parameter_at(idx))
+                } else {
+                    None
+                }
+            })
     }
 
-    /// Returns the part index of `name` or `None` if the part name does not
-    /// exist in this model.
+    pub fn parameter_mut(&mut self, name: &str) -> Option<ParameterMut> {
+        if let Some(idx) = self.parameter_ids().iter().position(|id| *id == name) {
+            Some(self.parameter_at_mut(idx))
+        } else {
+            None
+        }
+    }
+
+    pub fn parameter_at(&self, idx: usize) -> Parameter {
+        // Do manual bounds checking since all slices have the same length
+        assert!(idx < self.parameter_count());
+        unsafe {
+            Parameter {
+                id: &self.param_ids.get_unchecked(idx),
+                value: *self.parameter_values().get_unchecked(idx),
+                min_value: *self.parameter_min().get_unchecked(idx),
+                max_value: *self.parameter_max().get_unchecked(idx),
+                default_value: *self.parameter_default().get_unchecked(idx),
+            }
+        }
+    }
+
+    pub fn parameter_at_mut(&mut self, idx: usize) -> ParameterMut {
+        // Do manual bounds checking since all slices have the same length
+        assert!(idx < self.parameter_count());
+        unsafe {
+            let min_value = *self.parameter_min().get_unchecked(idx);
+            let max_value = *self.parameter_max().get_unchecked(idx);
+            let default_value = *self.parameter_default().get_unchecked(idx);
+            ParameterMut {
+                id: &self.moc.param_ids.get_unchecked(idx),
+                value: self.parameter_values_mut().get_unchecked_mut(idx),
+                min_value,
+                max_value,
+                default_value,
+            }
+        }
+    }
+
+    pub fn part(&self, name: &str) -> Option<Part> {
+        self.part_ids().iter().enumerate().find_map(|(idx, id)| {
+            if *id == name {
+                Some(self.part_at(idx))
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn part_mut(&mut self, name: &str) -> Option<PartMut> {
+        if let Some(idx) = self.part_ids().iter().position(|id| *id == name) {
+            Some(self.part_at_mut(idx))
+        } else {
+            None
+        }
+    }
+
     #[inline]
-    pub fn part_index(&self, name: &str) -> Option<usize> {
-        self.part_ids().iter().position(|id| *id == name)
+    pub fn part_at(&self, idx: usize) -> Part {
+        Part {
+            id: &self.moc.part_ids[idx],
+            opacity: self.part_opacities()[idx],
+        }
+    }
+
+    #[inline]
+    pub fn part_at_mut(&mut self, idx: usize) -> PartMut {
+        PartMut {
+            id: &self.moc.part_ids[idx],
+            opacity: &mut self.part_opacities_mut()[idx],
+        }
     }
 
     /// Returns the parameter values.
     #[inline]
     pub fn parameter_values(&self) -> &[f32] {
-        unsafe { self.param_values.as_ref() }
+        unsafe { self.param_val.as_ref() }
     }
 
     /// Returns a mutable slice of the parameter values.
     #[inline]
     pub fn parameter_values_mut(&mut self) -> &mut [f32] {
-        unsafe { self.param_values.as_mut() }
+        unsafe { self.param_val.as_mut() }
     }
 
     /// Sets the parameter value at index `idx` to `val`.
@@ -272,6 +344,38 @@ impl Model {
     pub(in crate) fn as_ptr(&self) -> *mut csmModel {
         self.mem.as_ptr()
     }
+
+    #[inline]
+    pub fn parameters(&self) -> ParameterIter {
+        ParameterIter {
+            model: self,
+            idx: 0,
+        }
+    }
+
+    #[inline]
+    pub fn parameters_mut(&mut self) -> ParameterIterMut {
+        ParameterIterMut {
+            model: self,
+            idx: 0,
+        }
+    }
+
+    #[inline]
+    pub fn parts(&self) -> PartIter {
+        PartIter {
+            model: self,
+            idx: 0,
+        }
+    }
+
+    #[inline]
+    pub fn parts_mut(&mut self) -> PartIterMut {
+        PartIterMut {
+            model: self,
+            idx: 0,
+        }
+    }
 }
 
 impl Model {
@@ -289,7 +393,7 @@ impl Model {
         Model {
             mem,
             moc,
-            param_values,
+            param_val: param_values,
             part_opacities,
             drawable_count,
         }
@@ -314,5 +418,143 @@ impl ops::Deref for Model {
     type Target = Moc;
     fn deref(&self) -> &Self::Target {
         &self.moc
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Parameter<'model> {
+    pub id: &'model str,
+    pub value: f32,
+    pub min_value: f32,
+    pub max_value: f32,
+    pub default_value: f32,
+}
+
+#[derive(Debug)]
+pub struct ParameterMut<'model> {
+    pub id: &'model str,
+    pub value: &'model mut f32,
+    pub min_value: f32,
+    pub max_value: f32,
+    pub default_value: f32,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Part<'model> {
+    pub id: &'model str,
+    pub opacity: f32,
+}
+
+#[derive(Debug)]
+pub struct PartMut<'model> {
+    pub id: &'model str,
+    pub opacity: &'model mut f32,
+}
+
+pub struct ParameterIter<'model> {
+    model: &'model Model,
+    idx: usize,
+}
+
+impl<'model> iter::ExactSizeIterator for ParameterIter<'model> {}
+impl<'model> iter::FusedIterator for ParameterIter<'model> {}
+impl<'model> Iterator for ParameterIter<'model> {
+    type Item = Parameter<'model>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.idx < self.model.parameter_count() {
+            let param = self.model.parameter_at(self.idx);
+            self.idx += 1;
+            Some(param)
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.model.parameter_count() - self.idx;
+        (len, Some(len))
+    }
+}
+
+pub struct ParameterIterMut<'model> {
+    model: &'model mut Model,
+    idx: usize,
+}
+
+impl<'model> iter::ExactSizeIterator for ParameterIterMut<'model> {}
+impl<'model> iter::FusedIterator for ParameterIterMut<'model> {}
+impl<'model> Iterator for ParameterIterMut<'model> {
+    type Item = ParameterMut<'model>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.idx < self.model.parameter_count() {
+            // safety: transmuting the lifetimes is safe here, since we only create mutable
+            // borrows to disjoint objects
+            let part = unsafe { mem::transmute(self.model.parameter_at_mut(self.idx)) };
+            self.idx += 1;
+            Some(part)
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.model.parameter_count() - self.idx;
+        (len, Some(len))
+    }
+}
+
+pub struct PartIter<'model> {
+    model: &'model Model,
+    idx: usize,
+}
+
+impl<'model> iter::ExactSizeIterator for PartIter<'model> {}
+impl<'model> iter::FusedIterator for PartIter<'model> {}
+impl<'model> Iterator for PartIter<'model> {
+    type Item = Part<'model>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.idx < self.model.part_count() {
+            let part = self.model.part_at(self.idx);
+            self.idx += 1;
+            Some(part)
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.model.part_count() - self.idx;
+        (len, Some(len))
+    }
+}
+
+pub struct PartIterMut<'model> {
+    model: &'model mut Model,
+    idx: usize,
+}
+
+impl<'model> iter::ExactSizeIterator for PartIterMut<'model> {}
+impl<'model> iter::FusedIterator for PartIterMut<'model> {}
+impl<'model> Iterator for PartIterMut<'model> {
+    type Item = PartMut<'model>;
+
+    fn next(&mut self) -> Option<PartMut<'model>> {
+        if self.idx < self.model.part_count() {
+            // safety: transmuting the lifetimes is safe here, since we only create mutable
+            // borrows to disjoint objects
+            let part = unsafe { mem::transmute(self.model.part_at_mut(self.idx)) };
+            self.idx += 1;
+            Some(part)
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.model.part_count() - self.idx;
+        (len, Some(len))
     }
 }
