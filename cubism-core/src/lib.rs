@@ -1,13 +1,12 @@
 //! Rust bindings for Live2D's cubism sdk
 
-pub mod error;
-
+mod error;
 mod log;
 mod mem;
 mod moc;
 mod model;
 
-pub use crate::{log::*, moc::*, model::*};
+pub use crate::{error::*, log::*, moc::*, model::*};
 
 /// Returns the linked library version in a (major, minor, patch) tuple
 pub fn version() -> (u8, u8, u16) {

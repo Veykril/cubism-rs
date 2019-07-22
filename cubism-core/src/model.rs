@@ -55,7 +55,7 @@ impl Model {
         }
     }
 
-    /// Returns the parameter at the specified idx.
+    /// Returns the parameter at the specified index.
     ///
     /// # Panics
     /// Panics on out of bounds access.
@@ -73,7 +73,7 @@ impl Model {
         }
     }
 
-    /// Returns the parameter at the specified idx.
+    /// Returns the parameter at the specified index.
     ///
     /// # Panics
     /// Panics on out of bounds access.
@@ -137,6 +137,44 @@ impl Model {
         PartMut {
             id: &self.moc.part_ids[idx],
             opacity: &mut self.part_opacities_mut()[idx],
+        }
+    }
+
+    /// Returns the first drawable with the given name, or `None` if there is
+    /// none with the given name.
+    pub fn drawable(&self, name: &str) -> Option<Drawable> {
+        self.drawable_ids()
+            .iter()
+            .enumerate()
+            .find_map(|(idx, id)| {
+                if *id == name {
+                    Some(self.drawable_at(idx))
+                } else {
+                    None
+                }
+            })
+    }
+
+    /// Returns the drawable at the specified index.
+    ///
+    /// # Panics
+    /// Panics on out of bounds access.
+    pub fn drawable_at(&self, idx: usize) -> Drawable {
+        // Do manual bounds checking since all slices have the same length
+        assert!(idx < self.drawable_count());
+        unsafe {
+            Drawable {
+                render_order: *self.drawable_render_orders().get_unchecked(idx),
+                draw_order: *self.drawable_draw_orders().get_unchecked(idx),
+                texture_index: *self.drawable_texture_indices().get_unchecked(idx),
+                indices: self.drawable_indices(idx),
+                vertex_position: self.drawable_vertex_positions(idx),
+                vertex_uv: self.drawable_vertex_uvs(idx),
+                opacity: *self.drawable_opacities().get_unchecked(idx),
+                masks: self.drawable_masks(idx),
+                constant_flags: *self.drawable_constant_flags().get_unchecked(idx),
+                dynamic_flags: *self.drawable_dynamic_flags().get_unchecked(idx),
+            }
         }
     }
 
@@ -263,7 +301,7 @@ impl Model {
 
     /// Returns the number of vertices of this model.
     #[inline]
-    pub fn drawable_vertex_counts(&self) -> &[i32] {
+    fn drawable_vertex_counts(&self) -> &[i32] {
         unsafe {
             slice::from_raw_parts(
                 ffi::csmGetDrawableVertexCounts(self.as_ptr()),
@@ -405,6 +443,15 @@ impl Model {
             idx: 0,
         }
     }
+
+    /// Returns an iterator over the model's parts.
+    #[inline]
+    pub fn drawables(&self) -> DrawableIter {
+        DrawableIter {
+            model: self,
+            idx: 0,
+        }
+    }
 }
 
 impl Model {
@@ -483,6 +530,27 @@ pub struct Part<'model> {
 pub struct PartMut<'model> {
     pub id: &'model str,
     pub opacity: &'model mut f32,
+}
+
+/// A drawable of a model.
+#[derive(Copy, Clone, Debug)]
+pub struct Drawable<'model> {
+    render_order: i32,
+    draw_order: i32,
+    texture_index: i32,
+    indices: &'model [u16],
+    vertex_position: &'model [[f32; 2]],
+    vertex_uv: &'model [[f32; 2]],
+    opacity: f32,
+    masks: &'model [i32],
+    constant_flags: ConstantFlags,
+    dynamic_flags: DynamicFlags,
+}
+
+impl<'model> Drawable<'model> {
+    pub fn is_masked(&self) -> bool {
+        !self.masks.is_empty()
+    }
 }
 
 /// An iterator that iterates over a model's parameters.
@@ -595,6 +663,36 @@ impl<'model> Iterator for PartIterMut<'model> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = self.model.part_count() - self.idx;
+        (len, Some(len))
+    }
+}
+
+/// An iterator that iterates over a model's parameters.
+#[derive(Clone)]
+pub struct DrawableIter<'model> {
+    model: &'model Model,
+    idx: usize,
+}
+
+impl<'model> iter::ExactSizeIterator for DrawableIter<'model> {}
+impl<'model> iter::FusedIterator for DrawableIter<'model> {}
+impl<'model> Iterator for DrawableIter<'model> {
+    type Item = Drawable<'model>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // TODO: optimize, this implementation does a lot of bounds checking and
+        // repeated ffi function calls
+        if self.idx < self.model.drawable_count() {
+            let drawable = self.model.drawable_at(self.idx);
+            self.idx += 1;
+            Some(drawable)
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.model.drawable_count() - self.idx;
         (len, Some(len))
     }
 }
