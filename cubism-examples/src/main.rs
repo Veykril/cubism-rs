@@ -105,8 +105,12 @@ fn main() {
             .prepare_frame(io, &window)
             .expect("Failed to start frame");
         last_frame = io.update_delta_time(last_frame);
+        let delta_time = io.delta_time;
         let ui = imgui.frame();
         // Show sliders for all our parameters and parts
+        ui.main_menu_bar(|| {
+            ui.label_text(&imgui::im_str!("Delta: {}", delta_time), &ImString::new(""));
+        });
         ui.window(&str_char_params)
             .size([300.0, 100.0], Condition::FirstUseEver)
             .build(|| {

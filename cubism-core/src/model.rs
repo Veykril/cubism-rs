@@ -64,7 +64,7 @@ impl Model {
         assert!(idx < self.parameter_count());
         unsafe {
             Parameter {
-                id: &self.param_ids.get_unchecked(idx),
+                id: &self.parameter_ids().get_unchecked(idx),
                 value: *self.parameter_values().get_unchecked(idx),
                 min_value: *self.parameter_min().get_unchecked(idx),
                 max_value: *self.parameter_max().get_unchecked(idx),
@@ -85,7 +85,7 @@ impl Model {
             let max_value = *self.parameter_max().get_unchecked(idx);
             let default_value = *self.parameter_default().get_unchecked(idx);
             ParameterMut {
-                id: &self.moc.param_ids.get_unchecked(idx),
+                id: &self.moc.parameter_ids.get_unchecked(idx),
                 value: self.parameter_values_mut().get_unchecked_mut(idx),
                 min_value,
                 max_value,
@@ -123,7 +123,7 @@ impl Model {
     #[inline]
     pub fn part_at(&self, idx: usize) -> Part {
         Part {
-            id: &self.moc.part_ids[idx],
+            id: &self.moc.part_ids()[idx],
             opacity: self.part_opacities()[idx],
         }
     }
@@ -206,6 +206,7 @@ impl Model {
     }
 
     /// Returns a mutable slice of the model's part opacities.
+    /// Opacity changes of a parent part also apply to its children.
     #[inline]
     pub fn part_opacities_mut(&mut self) -> &mut [f32] {
         unsafe { self.part_opacities.as_mut() }
@@ -224,8 +225,8 @@ impl Model {
     /// This has to be called before accessing the drawables.
     #[inline]
     pub fn update(&mut self) {
-        unsafe { ffi::csmUpdateModel(self.mem.as_ptr()) };
         unsafe { ffi::csmResetDrawableDynamicFlags(self.mem.as_ptr()) };
+        unsafe { ffi::csmUpdateModel(self.mem.as_ptr()) };
     }
 
     /// Returns information about this models size, origin and pixels-per-unit.
@@ -269,12 +270,7 @@ impl Model {
     /// Returns the texture indices of the drawables.
     #[inline]
     pub fn drawable_texture_indices(&self) -> &[i32] {
-        unsafe {
-            slice::from_raw_parts(
-                ffi::csmGetDrawableTextureIndices(self.as_ptr()),
-                self.drawable_count(),
-            )
-        }
+        self.moc.drawable_texture_indices()
     }
 
     /// Returns the number of indices for every drawable.
@@ -376,12 +372,7 @@ impl Model {
     /// Returns the [ConstantFlags](./struct.ConstantFlags.html).
     #[inline]
     pub fn drawable_constant_flags(&self) -> &[ConstantFlags] {
-        unsafe {
-            slice::from_raw_parts(
-                ffi::csmGetDrawableConstantFlags(self.as_ptr()) as *const ConstantFlags,
-                self.drawable_count(),
-            )
-        }
+        self.moc.drawable_constant_flags()
     }
 
     /// Returns the [DynamicFlags](./struct.DynamicFlags.html).
@@ -476,7 +467,7 @@ impl Model {
 
 impl Clone for Model {
     fn clone(&self) -> Self {
-        let model_mem = unsafe { self.moc.init_new_model() };
+        let model_mem = unsafe { Moc::init_new_model(self.moc.as_ptr()) };
         let mut model = unsafe { Self::new_impl(self.moc.clone(), model_mem) };
         model
             .parameter_values_mut()

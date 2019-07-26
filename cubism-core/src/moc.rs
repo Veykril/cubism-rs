@@ -6,6 +6,7 @@ use ffi::{csmMoc, csmModel};
 use crate::{
     error::{CubismError, CubismResult},
     mem::AlignedMemory,
+    ConstantFlags,
 };
 
 static INVALID_ID_STR: &str = "NON_UTF8_ID";
@@ -18,19 +19,21 @@ static INVALID_ID_STR: &str = "NON_UTF8_ID";
 #[derive(Debug)]
 pub struct Moc {
     mem: AlignedMemory<csmMoc>,
-    pub(in crate) part_ids: Vec<&'static str>,
-    pub(in crate) param_ids: Vec<&'static str>,
-    pub(in crate) drawable_ids: Vec<&'static str>,
+    pub(in crate) part_ids: Box<[&'static str]>,
+    pub(in crate) parameter_ids: Box<[&'static str]>,
+    pub(in crate) drawable_ids: Box<[&'static str]>,
     param_def_val: NonNull<[f32]>,
     param_max_val: NonNull<[f32]>,
     param_min_val: NonNull<[f32]>,
+    drawable_texture_indices: NonNull<[i32]>,
+    drawable_constant_flags: NonNull<[ConstantFlags]>,
 }
 
 impl Moc {
     /// Returns the parameter names.
     #[inline]
     pub fn parameter_ids<'moc>(&'moc self) -> &[&'moc str] {
-        &self.param_ids
+        &self.parameter_ids
     }
 
     /// Returns the part names.
@@ -66,7 +69,7 @@ impl Moc {
     /// Returns the number of parameters this moc has.
     #[inline]
     pub fn parameter_count(&self) -> usize {
-        self.param_ids.len()
+        self.parameter_ids.len()
     }
 
     /// Returns the number of parts this moc has.
@@ -79,6 +82,18 @@ impl Moc {
     #[inline]
     pub fn drawable_count(&self) -> usize {
         self.drawable_ids.len()
+    }
+
+    /// Returns the texture indices of the drawables.
+    #[inline]
+    pub fn drawable_texture_indices(&self) -> &[i32] {
+        unsafe { self.drawable_texture_indices.as_ref() }
+    }
+
+    /// Returns the [ConstantFlags](./struct.ConstantFlags.html).
+    #[inline]
+    pub fn drawable_constant_flags(&self) -> &[ConstantFlags] {
+        unsafe { self.drawable_constant_flags.as_ref() }
     }
 
     /// Returns the raw [csmMoc](../cubism_core_sys/moc/struct.csmMoc.html) ptr
@@ -108,23 +123,9 @@ impl Moc {
 
     pub(in crate) unsafe fn new(data: &[u8]) -> CubismResult<(Self, AlignedMemory<csmModel>)> {
         let mem = Self::new_moc(data)?;
-        let dangling = NonNull::new_unchecked(slice::from_raw_parts_mut(0x1 as *mut f32, 0));
-        let mut this = Moc {
-            mem,
-            part_ids: Vec::new(),
-            param_ids: Vec::new(),
-            drawable_ids: Vec::new(),
-            param_def_val: dangling,
-            param_max_val: dangling,
-            param_min_val: dangling,
-        };
-        let model = this.init_new_model();
-        this.init_ids(&model);
-        Ok((this, model))
-    }
-
-    unsafe fn init_ids(&mut self, model: &AlignedMemory<csmModel>) {
+        let model = Self::init_new_model(mem.as_ptr());
         let model_ptr = model.as_ptr();
+
         let id_transform = |ptr, len| {
             slice::from_raw_parts_mut(ptr, len)
                 .iter()
@@ -132,40 +133,46 @@ impl Moc {
         };
 
         let param_count = ffi::csmGetParameterCount(model_ptr) as usize;
-        let param_ids = ffi::csmGetParameterIds(model_ptr);
-        self.param_ids = id_transform(param_ids, param_count).collect();
         let part_count = ffi::csmGetPartCount(model_ptr) as usize;
-        let part_ids = ffi::csmGetPartIds(model_ptr);
-        self.part_ids = id_transform(part_ids, part_count).collect();
         let drawable_count = ffi::csmGetDrawableCount(model_ptr) as usize;
-        let drawable_ids = ffi::csmGetDrawableIds(model_ptr);
-        self.drawable_ids = id_transform(drawable_ids, drawable_count).collect();
 
-        self.param_def_val = NonNull::from(slice::from_raw_parts(
-            ffi::csmGetParameterDefaultValues(model_ptr),
-            param_count,
-        ));
-        self.param_max_val = NonNull::from(slice::from_raw_parts(
-            ffi::csmGetParameterMaximumValues(model_ptr),
-            param_count,
-        ));
-        self.param_min_val = NonNull::from(slice::from_raw_parts(
-            ffi::csmGetParameterMinimumValues(model_ptr),
-            param_count,
-        ));
+        Ok((
+            Moc {
+                mem,
+                part_ids: id_transform(ffi::csmGetParameterIds(model_ptr), param_count).collect(),
+                parameter_ids: id_transform(ffi::csmGetPartIds(model_ptr), part_count).collect(),
+                drawable_ids: id_transform(ffi::csmGetDrawableIds(model_ptr), drawable_count)
+                    .collect(),
+                param_def_val: NonNull::from(slice::from_raw_parts(
+                    ffi::csmGetParameterDefaultValues(model_ptr),
+                    param_count,
+                )),
+                param_max_val: NonNull::from(slice::from_raw_parts(
+                    ffi::csmGetParameterMaximumValues(model_ptr),
+                    param_count,
+                )),
+                param_min_val: NonNull::from(slice::from_raw_parts(
+                    ffi::csmGetParameterMinimumValues(model_ptr),
+                    param_count,
+                )),
+                drawable_texture_indices: NonNull::from(slice::from_raw_parts(
+                    ffi::csmGetDrawableTextureIndices(model_ptr),
+                    drawable_count,
+                )),
+                drawable_constant_flags: NonNull::from(slice::from_raw_parts(
+                    ffi::csmGetDrawableConstantFlags(model_ptr) as _,
+                    drawable_count,
+                )),
+            },
+            model,
+        ))
     }
 
-    pub(in crate) unsafe fn init_new_model(&self) -> AlignedMemory<csmModel> {
-        let model_size = ffi::csmGetSizeofModel(self.mem.as_ptr());
+    pub(in crate) unsafe fn init_new_model(moc: *const csmMoc) -> AlignedMemory<csmModel> {
+        let model_size = ffi::csmGetSizeofModel(moc);
         let model_mem = AlignedMemory::alloc(model_size as usize);
 
-        if ffi::csmInitializeModelInPlace(
-            self.mem.as_ptr(),
-            model_mem.as_ptr() as *mut _,
-            model_size,
-        )
-        .is_null()
-        {
+        if ffi::csmInitializeModelInPlace(moc, model_mem.as_ptr() as *mut _, model_size).is_null() {
             unreachable!(
                 "ffi::csmInitializeModelInPlace returned a null pointer, \
                  this shouldn't happen unless the alignment is incorrect"
