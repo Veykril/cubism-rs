@@ -221,6 +221,26 @@ impl Model {
         self.part_opacities_mut()[idx] = val;
     }
 
+    #[inline]
+    pub fn part_parent(&self, idx: usize) -> Option<Part> {
+        self.part_parents()
+            .get(idx)
+            .filter(|i| **i != -1)
+            .map(|i| self.part_at(*i as usize))
+    }
+
+    /// Returns the model's part parent relationships.
+    /// If the value of a parent is -1 it means the part is the root.
+    #[inline]
+    pub fn part_parents(&self) -> &[i32] {
+        unsafe {
+            slice::from_raw_parts(
+                ffi::csmGetPartParentPartIndices(self.as_ptr()),
+                self.part_count(),
+            )
+        }
+    }
+
     /// Updates this model and finalizes its parameters and part opacities.
     /// This has to be called before accessing the drawables.
     #[inline]
