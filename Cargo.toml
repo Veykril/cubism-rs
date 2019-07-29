@@ -12,6 +12,11 @@ categories = ["api-bindings"]
 
 [dependencies]
 cubism-core = { version = "0.1.0", path = "cubism-core"}
+serde_json = "^1.0"
+
+[dependencies.serde]
+version = "^1.0"
+features = ["derive"]
 
 [workspace]
 members = ["cubism-core-sys", "cubism-core", "cubism-core-glium-renderer", "cubism-examples", "cubism-core-piston2d-renderer"]
