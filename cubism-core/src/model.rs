@@ -167,11 +167,11 @@ impl Model {
                 render_order: *self.drawable_render_orders().get_unchecked(idx),
                 draw_order: *self.drawable_draw_orders().get_unchecked(idx),
                 texture_index: *self.drawable_texture_indices().get_unchecked(idx),
-                indices: self.drawable_indices()[idx],
+                indices: self.drawable_indices().get_unchecked(idx),
                 vertex_position: self.drawable_vertex_positions(idx),
                 vertex_uv: self.drawable_vertex_uvs(idx),
                 opacity: *self.drawable_opacities().get_unchecked(idx),
-                masks: self.drawable_masks(idx),
+                masks: self.drawable_masks().get_unchecked(idx),
                 constant_flags: *self.drawable_constant_flags().get_unchecked(idx),
                 dynamic_flags: *self.drawable_dynamic_flags().get_unchecked(idx),
             }
@@ -331,36 +331,6 @@ impl Model {
                 self.drawable_count(),
             )
         }
-    }
-
-    #[inline]
-    fn drawable_mask_counts(&self) -> &[i32] {
-        unsafe {
-            slice::from_raw_parts(
-                ffi::csmGetDrawableMaskCounts(self.as_ptr()),
-                self.drawable_count(),
-            )
-        }
-    }
-
-    /// Returns the mask of the drawable at the specified index.
-    #[inline]
-    pub fn drawable_masks(&self, idx: usize) -> &[i32] {
-        unsafe {
-            slice::from_raw_parts(
-                slice::from_raw_parts(
-                    ffi::csmGetDrawableMasks(self.as_ptr()),
-                    self.drawable_count(),
-                )[idx] as *const _,
-                self.drawable_mask_counts()[idx] as usize,
-            )
-        }
-    }
-
-    /// Returns true if this model is masked.
-    #[inline]
-    pub fn is_masked(&self) -> bool {
-        self.drawable_mask_counts().iter().any(|c| *c <= 0)
     }
 
     /// Returns the [DynamicFlags](./struct.DynamicFlags.html).

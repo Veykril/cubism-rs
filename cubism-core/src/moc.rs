@@ -31,6 +31,7 @@ pub struct Moc {
     drawable_texture_indices: NonNull<[i32]>,
     drawable_constant_flags: NonNull<[ConstantFlags]>,
     drawable_indices: Box<[&'static [u16]]>,
+    drawable_masks: Box<[&'static [i32]]>,
 }
 
 impl Moc {
@@ -106,6 +107,18 @@ impl Moc {
         &self.drawable_indices
     }
 
+    /// Returns the masks of the drawables.
+    #[inline]
+    pub fn drawable_masks<'moc>(&'moc self) -> &[&'moc [i32]] {
+        &self.drawable_masks
+    }
+
+    /// Returns true if this model is masked.
+    #[inline]
+    pub fn is_masked(&self) -> bool {
+        self.drawable_masks.iter().any(|m| m.len() > 0)
+    }
+
     /// Returns the raw [csmMoc](../cubism_core_sys/moc/struct.csmMoc.html) ptr
     #[inline]
     pub fn as_ptr(&self) -> *mut csmMoc {
@@ -146,22 +159,27 @@ impl Moc {
         let part_count = ffi::csmGetPartCount(model_ptr) as usize;
         let drawable_count = ffi::csmGetDrawableCount(model_ptr) as usize;
 
+        let indices = slice::from_raw_parts(ffi::csmGetDrawableIndices(model_ptr), drawable_count);
         let drawable_indices =
             slice::from_raw_parts(ffi::csmGetDrawableIndexCounts(model_ptr), drawable_count)
                 .iter()
-                .enumerate()
-                .map(|(idx, c)| {
-                    slice::from_raw_parts(
-                        *ffi::csmGetDrawableIndices(model_ptr).add(idx),
-                        *c as usize,
-                    )
-                })
+                .zip(indices)
+                .map(|(c, indices)| slice::from_raw_parts(*indices, *c as usize))
                 .collect();
+        let masks = slice::from_raw_parts(ffi::csmGetDrawableMasks(model_ptr), drawable_count);
+        let drawable_masks =
+            slice::from_raw_parts(ffi::csmGetDrawableMaskCounts(model_ptr), drawable_count)
+                .iter()
+                .zip(masks)
+                .map(|(c, masks)| slice::from_raw_parts(*masks, *c as usize))
+                .collect();
+
         Ok((
             Moc {
                 mem,
-                part_ids: id_transform(ffi::csmGetParameterIds(model_ptr), param_count).collect(),
-                parameter_ids: id_transform(ffi::csmGetPartIds(model_ptr), part_count).collect(),
+                part_ids: id_transform(ffi::csmGetPartIds(model_ptr), part_count).collect(),
+                parameter_ids: id_transform(ffi::csmGetParameterIds(model_ptr), param_count)
+                    .collect(),
                 drawable_ids: id_transform(ffi::csmGetDrawableIds(model_ptr), drawable_count)
                     .collect(),
                 param_def_val: NonNull::from(slice::from_raw_parts(
@@ -185,6 +203,7 @@ impl Moc {
                     drawable_count,
                 )),
                 drawable_indices,
+                drawable_masks,
             },
             model,
         ))
