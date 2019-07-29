@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use ffi::csmModel;
 
-use crate::{error::CubismResult, mem::AlignedMemory, moc::Moc, ConstantFlags, DynamicFlags};
+use crate::{error::MocResult, mem::AlignedMemory, moc::Moc, ConstantFlags, DynamicFlags};
 
 /// This represents a model.
 ///
@@ -26,7 +26,7 @@ pub struct Model {
 impl Model {
     /// Creates a model instance from bytes.
     #[inline]
-    pub fn from_bytes<R: AsRef<[u8]>>(data: R) -> CubismResult<Self> {
+    pub fn from_bytes<R: AsRef<[u8]>>(data: R) -> MocResult<Self> {
         unsafe { Moc::new(data.as_ref()).map(|(moc, mem)| Self::new_impl(Arc::new(moc), mem)) }
     }
 

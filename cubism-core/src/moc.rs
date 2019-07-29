@@ -4,7 +4,7 @@ use std::{ffi::CStr, ptr::NonNull};
 use ffi::{csmMoc, csmModel};
 
 use crate::{
-    error::{CubismError, CubismResult},
+    error::{MocError, MocResult},
     mem::AlignedMemory,
     ConstantFlags,
 };
@@ -104,24 +104,24 @@ impl Moc {
 }
 
 impl Moc {
-    unsafe fn new_moc(data: &[u8]) -> CubismResult<AlignedMemory<csmMoc>> {
+    unsafe fn new_moc(data: &[u8]) -> MocResult<AlignedMemory<csmMoc>> {
         let moc_ver = ffi::csmGetMocVersion(data.as_ptr() as _, data.len() as _);
         if ffi::csmGetLatestMocVersion() < moc_ver {
-            Err(CubismError::MocVersionMismatch(moc_ver))
+            Err(MocError::MocVersionMismatch(moc_ver))
         } else {
             let mem = AlignedMemory::alloc(data.len());
             ptr::copy_nonoverlapping(data.as_ptr(), mem.as_ptr() as *mut u8, data.len());
             let revived =
                 ffi::csmReviveMocInPlace(mem.as_ptr() as _, mem.layout().size() as u32).is_null();
             if revived {
-                Err(CubismError::InvalidMocData)
+                Err(MocError::InvalidMocData)
             } else {
                 Ok(mem)
             }
         }
     }
 
-    pub(in crate) unsafe fn new(data: &[u8]) -> CubismResult<(Self, AlignedMemory<csmModel>)> {
+    pub(in crate) unsafe fn new(data: &[u8]) -> MocResult<(Self, AlignedMemory<csmModel>)> {
         let mem = Self::new_moc(data)?;
         let model = Self::init_new_model(mem.as_ptr());
         let model_ptr = model.as_ptr();

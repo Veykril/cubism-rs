@@ -2,33 +2,31 @@ use core::fmt;
 use std::error;
 
 /// The result type, returned by this library.
-pub type CubismResult<T> = std::result::Result<T, CubismError>;
+pub type MocResult<T> = std::result::Result<T, MocError>;
 
-/// The error type returned by all fallible functions.
+/// An error returned by [`Model::from_bytes`].
+///
+/// [`Model::from_bytes`]: ../struct.Model.html#method.from_bytes
 #[derive(Debug)]
-pub enum CubismError {
-    /// The moc version of the data passed to [`Model::from_bytes`] is too old
-    /// and therefore cannot be used.
-    ///
-    /// [`Model::from_bytes`]: ../struct.Model.html#method.from_bytes
+pub enum MocError {
+    /// The moc version of the data passed is too old and therefore cannot be
+    /// loaded.
     MocVersionMismatch(u32),
-    /// The moc data passed to [`Model::from_bytes`] was invalid.
-    ///
-    /// [`Model::from_bytes`]: ../struct.Model.html#method.from_bytes
+    /// The moc data passed is not a valid moc file.
     InvalidMocData,
 }
 
-impl error::Error for CubismError {}
+impl error::Error for MocError {}
 
-impl fmt::Display for CubismError {
+impl fmt::Display for MocError {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CubismError::MocVersionMismatch(v) => write!(
+            MocError::MocVersionMismatch(v) => write!(
                 fmt,
-                "the moc version of the file is too old for the cubism core, found {}",
+                "the moc version of the file is too old for the cubism core lib, found {}",
                 v
             ),
-            CubismError::InvalidMocData => write!(fmt, "the moc data is invalid"),
+            MocError::InvalidMocData => write!(fmt, "the moc data is invalid"),
         }
     }
 }
