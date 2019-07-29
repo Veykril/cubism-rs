@@ -10,13 +10,14 @@ use glium::{
 
 use glium::{implement_vertex, program, uniform};
 
-use core::fmt;
-use std::{error::Error, rc::Rc};
+use core::{fmt, ptr};
+use std::{error::Error, rc::Rc, sync::Arc};
 
-use cubism_core::Model;
+use cubism_core::{Moc, Model};
 
 #[derive(Clone, Debug)]
 pub enum RendererError {
+    MocMismatch,
     Vertex(vertex::BufferCreationError),
     Index(index::BufferCreationError),
     Program(ProgramChooserCreationError),
@@ -30,6 +31,10 @@ impl fmt::Display for RendererError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use self::RendererError::*;
         match *self {
+            MocMismatch => write!(
+                f,
+                "renderer received different moc than what it has been initialized with"
+            ),
             Vertex(_) => write!(f, "Vertex buffer creation failed"),
             Index(_) => write!(f, "Index buffer creation failed"),
             Program(ref e) => write!(f, "Program creation failed: {}", e),
@@ -77,15 +82,16 @@ struct Vertex {
 implement_vertex!(Vertex, a_pos, a_tex_coords);
 
 pub struct Renderer {
+    moc: Arc<Moc>,
     ctx: Rc<Context>,
     program: Program,
     vertex_buffer: VertexBuffer<Vertex>,
-    index_buffer: IndexBuffer<u16>,
+    index_buffers: Vec<IndexBuffer<u16>>,
     mvp: mint::ColumnMatrix4<f32>,
 }
 
 impl Renderer {
-    pub fn new<F: Facade>(facade: &F) -> Result<Self, RendererError> {
+    pub fn new<F: Facade>(facade: &F, moc: Arc<Moc>) -> Result<Self, RendererError> {
         let program = compile_default_program(facade)?;
         let vertex_buffer = VertexBuffer::dynamic(
             facade,
@@ -94,12 +100,17 @@ impl Renderer {
                 a_tex_coords: [0.0, 0.0],
             }; 256],
         )?;
-        let index_buffer = IndexBuffer::dynamic(facade, PrimitiveType::TrianglesList, &[0; 256])?;
+        let index_buffers = moc
+            .drawable_indices()
+            .iter()
+            .map(|indices| IndexBuffer::immutable(facade, PrimitiveType::TrianglesList, indices))
+            .collect::<Result<Vec<_>, _>>()?;
         Ok(Renderer {
+            moc,
             ctx: Rc::clone(facade.get_context()),
             program,
             vertex_buffer,
-            index_buffer,
+            index_buffers,
             mvp: [
                 [1.0, 0.0, 0.0, 0.0],
                 [0.0, 1.0, 0.0, 0.0],
@@ -116,15 +127,19 @@ impl Renderer {
         model: &Model,
         textures: &[CompressedSrgbTexture2d],
     ) -> Result<(), RendererError> {
-        let mut sorted_draw_indices = vec![0; model.drawable_count()];
-        for (idx, order) in model.drawable_render_orders().iter().enumerate() {
-            sorted_draw_indices[*order as usize] = idx;
-        }
+        if !ptr::eq(model.moc(), &*self.moc) {
+            Err(RendererError::MocMismatch)
+        } else {
+            let mut sorted_draw_indices = vec![0; model.drawable_count()];
+            for (idx, order) in model.drawable_render_orders().iter().enumerate() {
+                sorted_draw_indices[*order as usize] = idx;
+            }
 
-        for draw_idx in sorted_draw_indices {
-            self.draw_mesh(target, model, draw_idx, textures)?;
+            for draw_idx in sorted_draw_indices {
+                self.draw_mesh(target, model, draw_idx, textures)?;
+            }
+            Ok(())
         }
-        Ok(())
     }
 
     fn draw_mesh<T: Surface>(
@@ -149,15 +164,13 @@ impl Renderer {
                 a_tex_coords: [vtx_uv[0], vtx_uv[1]],
             });
         }
-        let idx_buffer = Vec::from(model.drawable_indices(index));
         self.upload_vertex_buffer(&vtx_buffer)?;
-        self.upload_index_buffer(&idx_buffer)?;
 
         let tex = &textures[model.drawable_texture_indices()[index] as usize];
         target
             .draw(
                 &self.vertex_buffer,
-                &self.index_buffer,
+                &self.index_buffers[index],
                 &self.program,
                 &uniform! {
                     u_mvp: Into::<[[f32; 4]; 4]>::into(self.mvp),
@@ -178,16 +191,6 @@ impl Renderer {
             self.vertex_buffer = VertexBuffer::dynamic(&self.ctx, vtx_buffer)?;
         } else {
             self.vertex_buffer.write(vtx_buffer);
-        }
-        Ok(())
-    }
-
-    fn upload_index_buffer(&mut self, idx_buffer: &[u16]) -> Result<(), RendererError> {
-        if self.index_buffer.len() != idx_buffer.len() {
-            self.index_buffer =
-                IndexBuffer::dynamic(&self.ctx, PrimitiveType::TrianglesList, idx_buffer)?;
-        } else {
-            self.index_buffer.write(idx_buffer);
         }
         Ok(())
     }

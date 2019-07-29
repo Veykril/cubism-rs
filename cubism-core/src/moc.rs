@@ -16,6 +16,9 @@ static INVALID_ID_STR: &str = "NON_UTF8_ID";
 /// A moc should never exist without at least one model instance as it
 /// owns the parameter, part and drawable ids as well as the minimum, maximum
 /// and default parameter values of its [Model](./struct.Model.html).
+///
+/// All the data that can be accessed from a moc is static data that will not
+/// change over the course of a programs lifetime.
 #[derive(Debug)]
 pub struct Moc {
     mem: AlignedMemory<csmMoc>,
@@ -27,6 +30,7 @@ pub struct Moc {
     param_min_val: NonNull<[f32]>,
     drawable_texture_indices: NonNull<[i32]>,
     drawable_constant_flags: NonNull<[ConstantFlags]>,
+    drawable_indices: Box<[&'static [u16]]>,
 }
 
 impl Moc {
@@ -96,6 +100,12 @@ impl Moc {
         unsafe { self.drawable_constant_flags.as_ref() }
     }
 
+    /// Returns the indices of the drawables.
+    #[inline]
+    pub fn drawable_indices<'moc>(&'moc self) -> &[&'moc [u16]] {
+        &self.drawable_indices
+    }
+
     /// Returns the raw [csmMoc](../cubism_core_sys/moc/struct.csmMoc.html) ptr
     #[inline]
     pub fn as_ptr(&self) -> *mut csmMoc {
@@ -136,6 +146,17 @@ impl Moc {
         let part_count = ffi::csmGetPartCount(model_ptr) as usize;
         let drawable_count = ffi::csmGetDrawableCount(model_ptr) as usize;
 
+        let drawable_indices =
+            slice::from_raw_parts(ffi::csmGetDrawableIndexCounts(model_ptr), drawable_count)
+                .iter()
+                .enumerate()
+                .map(|(idx, c)| {
+                    slice::from_raw_parts(
+                        *ffi::csmGetDrawableIndices(model_ptr).add(idx),
+                        *c as usize,
+                    )
+                })
+                .collect();
         Ok((
             Moc {
                 mem,
@@ -163,6 +184,7 @@ impl Moc {
                     ffi::csmGetDrawableConstantFlags(model_ptr) as _,
                     drawable_count,
                 )),
+                drawable_indices,
             },
             model,
         ))

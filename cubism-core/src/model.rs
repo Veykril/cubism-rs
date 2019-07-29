@@ -167,7 +167,7 @@ impl Model {
                 render_order: *self.drawable_render_orders().get_unchecked(idx),
                 draw_order: *self.drawable_draw_orders().get_unchecked(idx),
                 texture_index: *self.drawable_texture_indices().get_unchecked(idx),
-                indices: self.drawable_indices(idx),
+                indices: self.drawable_indices()[idx],
                 vertex_position: self.drawable_vertex_positions(idx),
                 vertex_uv: self.drawable_vertex_uvs(idx),
                 opacity: *self.drawable_opacities().get_unchecked(idx),
@@ -245,6 +245,8 @@ impl Model {
     /// This has to be called before accessing the drawables.
     #[inline]
     pub fn update(&mut self) {
+        // FIXME: is this order correct? This is what the pdf says, but the framework
+        // implementation has it reversed
         unsafe { ffi::csmResetDrawableDynamicFlags(self.mem.as_ptr()) };
         unsafe { ffi::csmUpdateModel(self.mem.as_ptr()) };
     }
@@ -283,34 +285,6 @@ impl Model {
             slice::from_raw_parts(
                 ffi::csmGetDrawableDrawOrders(self.as_ptr()),
                 self.drawable_count(),
-            )
-        }
-    }
-
-    /// Returns the texture indices of the drawables.
-    #[inline]
-    pub fn drawable_texture_indices(&self) -> &[i32] {
-        self.moc.drawable_texture_indices()
-    }
-
-    /// Returns the number of indices for every drawable.
-    #[inline]
-    fn drawable_index_counts(&self) -> &[i32] {
-        unsafe {
-            slice::from_raw_parts(
-                ffi::csmGetDrawableIndexCounts(self.as_ptr()),
-                self.drawable_count(),
-            )
-        }
-    }
-
-    /// Returns the indices of the drawable at the specified index.
-    #[inline]
-    pub fn drawable_indices(&self, idx: usize) -> &[u16] {
-        unsafe {
-            slice::from_raw_parts(
-                *ffi::csmGetDrawableIndices(self.as_ptr()).add(idx),
-                self.drawable_index_counts()[idx] as usize,
             )
         }
     }
@@ -389,12 +363,6 @@ impl Model {
         self.drawable_mask_counts().iter().any(|c| *c <= 0)
     }
 
-    /// Returns the [ConstantFlags](./struct.ConstantFlags.html).
-    #[inline]
-    pub fn drawable_constant_flags(&self) -> &[ConstantFlags] {
-        self.moc.drawable_constant_flags()
-    }
-
     /// Returns the [DynamicFlags](./struct.DynamicFlags.html).
     #[inline]
     pub fn drawable_dynamic_flags(&self) -> &[DynamicFlags] {
@@ -410,6 +378,14 @@ impl Model {
     #[inline]
     pub fn moc(&self) -> &Moc {
         &self.moc
+    }
+
+    /// Clones the arc that holds the underlying [Moc](./struct.Moc.html) and
+    /// returns it.
+    #[inline]
+    #[must_use]
+    pub fn moc_arc(&self) -> Arc<Moc> {
+        self.moc.clone()
     }
 
     /// Returns the raw
@@ -488,7 +464,7 @@ impl Model {
 impl Clone for Model {
     fn clone(&self) -> Self {
         let model_mem = unsafe { Moc::init_new_model(self.moc.as_ptr()) };
-        let mut model = unsafe { Self::new_impl(self.moc.clone(), model_mem) };
+        let mut model = unsafe { Self::new_impl(self.moc_arc(), model_mem) };
         model
             .parameter_values_mut()
             .copy_from_slice(self.parameter_values());
@@ -501,7 +477,15 @@ impl Clone for Model {
 
 impl ops::Deref for Model {
     type Target = Moc;
+    #[inline]
     fn deref(&self) -> &Self::Target {
+        &self.moc
+    }
+}
+
+impl AsRef<Moc> for Model {
+    #[inline]
+    fn as_ref(&self) -> &Moc {
         &self.moc
     }
 }

@@ -144,7 +144,7 @@ impl Renderer {
 
         let vtx_pos = model.drawable_vertex_positions(index);
         let vtx_uv = model.drawable_vertex_uvs(index);
-        let idx_buffer = model.drawable_indices(index);
+        let idx_buffer = model.drawable_indices()[index];
 
         let tex = &textures[model.drawable_texture_indices()[index] as usize];
 

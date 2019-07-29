@@ -64,7 +64,8 @@ fn main() {
         &std::fs::read(&res_path.join("Haru/Haru.moc3")).unwrap()[..],
     )
     .unwrap();
-    let mut model_renderer = cubism_core_glium_renderer::Renderer::new(&display).unwrap();
+    let mut model_renderer =
+        cubism_core_glium_renderer::Renderer::new(&display, haru.moc_arc()).unwrap();
 
     let gl_window = display.gl_window();
     let window = gl_window.window();
