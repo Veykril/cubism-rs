@@ -2,23 +2,32 @@ use serde::{Deserialize, Serialize};
 
 use std::path::PathBuf;
 
-// TODO: replace some Optionals with defaults?
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Model3 {
     pub version: usize,
     #[serde(default, rename = "FileReferences")]
-    pub file_references: Option<FileReferences>,
+    pub file_references: FileReferences,
     #[serde(default)]
     pub groups: Vec<Group>,
     #[serde(default, rename = "HitAreas")]
     pub hit_areas: Vec<HitArea>,
-    #[serde(default)]
     pub layout: Option<Layout>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+impl Model3 {
+    #[inline]
+    pub fn from_str(s: &str) -> serde_json::Result<Self> {
+        serde_json::from_str(s)
+    }
+
+    #[inline]
+    pub fn from_reader<R: std::io::Read>(r: R) -> serde_json::Result<Self> {
+        serde_json::from_reader(r)
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct FileReferences {
     pub moc: Option<PathBuf>,
@@ -28,7 +37,8 @@ pub struct FileReferences {
     pub physics: Option<PathBuf>,
     #[serde(default)]
     pub expressions: Vec<Expression>,
-    pub motions: Option<Motions>,
+    #[serde(default)]
+    pub motions: Motions,
     #[serde(rename = "UserData")]
     pub user_data: Option<PathBuf>,
 }
@@ -43,7 +53,7 @@ pub struct Group {
 
 // TODO: Might very well be just a hashmap figure out whether these names should
 // be hardcoded or not
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Motions {
     #[serde(default)]
@@ -64,10 +74,16 @@ pub struct Motions {
 #[serde(rename_all = "PascalCase")]
 pub struct Motion {
     pub file: PathBuf,
-    #[serde(rename = "FadeInTime")]
-    pub fade_in_time: Option<f32>,
-    #[serde(rename = "FadeOutTime")]
-    pub fade_out_time: Option<f32>,
+    #[serde(rename = "FadeInTime", default = "Motion::fade_time_default")]
+    pub fade_in_time: f32,
+    #[serde(rename = "FadeOutTime", default = "Motion::fade_time_default")]
+    pub fade_out_time: f32,
+}
+
+impl Motion {
+    fn fade_time_default() -> f32 {
+        1.0
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -84,14 +100,17 @@ pub struct HitArea {
     pub id: String,
 }
 
-// FIXME: unimplemented, have no sample data so far
-#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Layout {
     #[serde(rename = "CenterX")]
     pub center_x: f32,
     #[serde(rename = "CenterY")]
     pub center_y: f32,
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
 }
 
 #[test]
