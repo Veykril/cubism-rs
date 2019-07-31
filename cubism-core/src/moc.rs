@@ -32,6 +32,7 @@ pub struct Moc {
     drawable_constant_flags: NonNull<[ConstantFlags]>,
     drawable_indices: Box<[&'static [u16]]>,
     drawable_masks: Box<[&'static [i32]]>,
+    drawable_vertex_counts: NonNull<[i32]>,
 }
 
 impl Moc {
@@ -99,6 +100,12 @@ impl Moc {
     #[inline]
     pub fn drawable_constant_flags(&self) -> &[ConstantFlags] {
         unsafe { self.drawable_constant_flags.as_ref() }
+    }
+
+    /// Returns the vertex counts of each drawable.
+    #[inline]
+    pub fn drawable_vertex_counts(&self) -> &[i32] {
+        unsafe { self.drawable_vertex_counts.as_ref() }
     }
 
     /// Returns the indices of the drawables.
@@ -204,6 +211,10 @@ impl Moc {
                 )),
                 drawable_indices,
                 drawable_masks,
+                drawable_vertex_counts: NonNull::from(slice::from_raw_parts(
+                    ffi::csmGetDrawableVertexCounts(model_ptr),
+                    drawable_count,
+                )),
             },
             model,
         ))

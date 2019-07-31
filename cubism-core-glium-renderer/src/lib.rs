@@ -1,26 +1,27 @@
 use glium::{
-    backend::{Context, Facade},
+    backend::Facade,
     index::{self, PrimitiveType},
-    program::ProgramChooserCreationError,
+    program::ProgramCreationInput::SourceCode,
     texture::{buffer_texture::TextureCreationError, CompressedSrgbTexture2d},
     uniforms::{MagnifySamplerFilter, MinifySamplerFilter},
     vertex::{self, VertexBuffer},
-    Blend, DrawError, DrawParameters, IndexBuffer, Program, Surface,
+    BackfaceCullingMode, DrawError, DrawParameters, IndexBuffer, Program, ProgramCreationError,
+    Surface,
 };
 
-use glium::{implement_vertex, program, uniform};
+use glium::{implement_vertex, uniform};
 
 use core::{fmt, ptr};
-use std::{error::Error, rc::Rc, sync::Arc};
+use std::{error::Error, sync::Arc};
 
-use cubism_core::{Moc, Model};
+use cubism_core::{ConstantFlags, Drawable, Moc, Model};
 
 #[derive(Clone, Debug)]
 pub enum RendererError {
     MocMismatch,
     Vertex(vertex::BufferCreationError),
     Index(index::BufferCreationError),
-    Program(ProgramChooserCreationError),
+    Program(ProgramCreationError),
     Texture(TextureCreationError),
     Draw(DrawError),
 }
@@ -56,8 +57,8 @@ impl From<index::BufferCreationError> for RendererError {
     }
 }
 
-impl From<ProgramChooserCreationError> for RendererError {
-    fn from(e: ProgramChooserCreationError) -> RendererError {
+impl From<ProgramCreationError> for RendererError {
+    fn from(e: ProgramCreationError) -> RendererError {
         RendererError::Program(e)
     }
 }
@@ -74,16 +75,36 @@ impl From<DrawError> for RendererError {
     }
 }
 
+#[inline]
+fn create_program<F: Facade>(
+    facade: &F,
+    vertex_shader: &str,
+    fragment_shader: &str,
+) -> Result<Program, ProgramCreationError> {
+    Program::new(
+        facade,
+        SourceCode {
+            vertex_shader,
+            tessellation_control_shader: None,
+            tessellation_evaluation_shader: None,
+            geometry_shader: None,
+            fragment_shader,
+            transform_feedback_varyings: None,
+            outputs_srgb: true,
+            uses_point_size: false,
+        },
+    )
+}
+
 #[derive(Copy, Clone)]
 struct Vertex {
-    a_pos: [f32; 2],
-    a_tex_coords: [f32; 2],
+    in_pos: [f32; 2],
+    in_tex_coords: [f32; 2],
 }
-implement_vertex!(Vertex, a_pos, a_tex_coords);
+implement_vertex!(Vertex, in_pos, in_tex_coords);
 
 pub struct Renderer {
     moc: Arc<Moc>,
-    ctx: Rc<Context>,
     program: Program,
     vertex_buffer: VertexBuffer<Vertex>,
     index_buffers: Vec<IndexBuffer<u16>>,
@@ -92,13 +113,18 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new<F: Facade>(facade: &F, moc: Arc<Moc>) -> Result<Self, RendererError> {
-        let program = compile_default_program(facade)?;
-        let vertex_buffer = VertexBuffer::dynamic(
+        let program = create_program(
             facade,
-            &[Vertex {
-                a_pos: [0.0, 0.0],
-                a_tex_coords: [0.0, 0.0],
-            }; 256],
+            include_str!("shader/normal.vert"),
+            include_str!("shader/normal.frag"),
+        )?;
+        let vertex_buffer = VertexBuffer::empty_dynamic(
+            facade,
+            moc.drawable_vertex_counts()
+                .iter()
+                .max()
+                .copied()
+                .unwrap_or_default() as usize,
         )?;
         let index_buffers = moc
             .drawable_indices()
@@ -107,7 +133,6 @@ impl Renderer {
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Renderer {
             moc,
-            ctx: Rc::clone(facade.get_context()),
             program,
             vertex_buffer,
             index_buffers,
@@ -130,69 +155,73 @@ impl Renderer {
         if !ptr::eq(model.moc(), &*self.moc) {
             Err(RendererError::MocMismatch)
         } else {
-            let mut sorted_draw_indices = vec![0; model.drawable_count()];
-            for (idx, order) in model.drawable_render_orders().iter().enumerate() {
-                sorted_draw_indices[*order as usize] = idx;
-            }
-
-            for draw_idx in sorted_draw_indices {
-                self.draw_mesh(target, model, draw_idx, textures)?;
+            let mut drawables: Vec<_> = model.drawables().collect();
+            drawables.sort_unstable_by_key(|d| d.render_order);
+            // pass by ref or value? Drawable is quite a big structure
+            for drawable in &drawables {
+                self.draw_drawable(target, drawable, textures)?;
             }
             Ok(())
         }
     }
 
-    fn draw_mesh<T: Surface>(
+    fn draw_drawable<T: Surface>(
         &mut self,
         target: &mut T,
-        model: &Model,
-        index: usize,
+        drawable: &Drawable,
         textures: &[CompressedSrgbTexture2d],
     ) -> Result<(), RendererError> {
-        let opacity = model.drawable_opacities()[index];
-        if opacity <= 0.0 {
+        if drawable.opacity <= 0.0 {
             return Ok(());
         }
-        let vtx_pos = model.drawable_vertex_positions(index);
-        let vtx_uv = model.drawable_vertex_uvs(index);
-        let mut vtx_buffer = Vec::with_capacity(vtx_pos.len());
-        for i in 0..vtx_pos.len() {
-            let vtx_pos = vtx_pos[i];
-            let vtx_uv = vtx_uv[i];
-            vtx_buffer.push(Vertex {
-                a_pos: [vtx_pos[0], vtx_pos[1]],
-                a_tex_coords: [vtx_uv[0], vtx_uv[1]],
-            });
-        }
-        self.upload_vertex_buffer(&vtx_buffer)?;
+        let vtx_pos = drawable.vertex_positions;
+        let vtx_uv = drawable.vertex_uvs;
+        let vtx_buffer = vtx_pos
+            .iter()
+            .zip(vtx_uv)
+            .map(|(pos, uv)| Vertex {
+                in_pos: [pos[0], pos[1]],
+                in_tex_coords: [uv[0], uv[1]],
+            })
+            .collect::<Vec<_>>();
+        self.vertex_buffer
+            .slice(0..vtx_pos.len())
+            .unwrap()
+            .write(&vtx_buffer);
 
-        let tex = &textures[model.drawable_texture_indices()[index] as usize];
+        let cflags = drawable.constant_flags;
+        let blend = if cflags.intersects(ConstantFlags::BLEND_MULTIPLICATIVE) {
+            blend::MULTIPLICATIVE
+        } else if cflags.intersects(ConstantFlags::BLEND_ADDITIVE) {
+            blend::ADDITIVE
+        } else {
+            blend::NORMAL
+        };
+        let backface_culling = if cflags.intersects(ConstantFlags::IS_DOUBLE_SIDED) {
+            BackfaceCullingMode::CullingDisabled
+        } else {
+            BackfaceCullingMode::CullCounterClockwise
+        };
+
+        let tex = &textures[drawable.texture_index as usize];
         target
             .draw(
                 &self.vertex_buffer,
-                &self.index_buffers[index],
+                &self.index_buffers[drawable.index],
                 &self.program,
                 &uniform! {
                     u_mvp: Into::<[[f32; 4]; 4]>::into(self.mvp),
-                    u_tex0: tex.sampled()
+                    us_tex0: tex.sampled()
                         .minify_filter(MinifySamplerFilter::Linear)
                         .magnify_filter(MagnifySamplerFilter::Linear)
                 },
                 &DrawParameters {
-                    blend: Blend::alpha_blending(),
+                    blend,
+                    backface_culling,
                     ..DrawParameters::default()
                 },
             )
             .map_err(|e| e.into())
-    }
-
-    fn upload_vertex_buffer(&mut self, vtx_buffer: &[Vertex]) -> Result<(), RendererError> {
-        if self.vertex_buffer.len() != vtx_buffer.len() {
-            self.vertex_buffer = VertexBuffer::dynamic(&self.ctx, vtx_buffer)?;
-        } else {
-            self.vertex_buffer.write(vtx_buffer);
-        }
-        Ok(())
     }
 
     pub fn mvp(&self) -> mint::ColumnMatrix4<f32> {
@@ -208,13 +237,43 @@ impl Renderer {
     }
 }
 
-fn compile_default_program<F: Facade>(facade: &F) -> Result<Program, ProgramChooserCreationError> {
-    program!(
-        facade,
-        330 => {
-            vertex: include_str!("shader/330.vert"),
-            fragment: include_str!("shader/330.frag"),
-            outputs_srgb: true,
+mod blend {
+    use glium::{Blend, BlendingFunction as BF, LinearBlendingFactor as LBF};
+
+    pub const NORMAL: Blend = Blend {
+        color: BF::Addition {
+            source: LBF::One,
+            destination: LBF::OneMinusSourceAlpha,
         },
-    )
+        alpha: BF::Addition {
+            source: LBF::One,
+            destination: LBF::OneMinusSourceAlpha,
+        },
+        constant_value: (0.0, 0.0, 0.0, 0.0),
+    };
+
+    pub const ADDITIVE: Blend = Blend {
+        color: BF::Addition {
+            source: LBF::One,
+            destination: LBF::One,
+        },
+        alpha: BF::Addition {
+            source: LBF::Zero,
+            destination: LBF::One,
+        },
+        constant_value: (0.0, 0.0, 0.0, 0.0),
+    };
+
+    pub const MULTIPLICATIVE: Blend = Blend {
+        color: BF::Addition {
+            source: LBF::DestinationColor,
+            destination: LBF::OneMinusSourceAlpha,
+        },
+        alpha: BF::Addition {
+            source: LBF::Zero,
+            destination: LBF::One,
+        },
+        constant_value: (0.0, 0.0, 0.0, 0.0),
+    };
+
 }

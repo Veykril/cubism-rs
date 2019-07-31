@@ -164,12 +164,13 @@ impl Model {
         assert!(idx < self.drawable_count());
         unsafe {
             Drawable {
+                index: idx,
                 render_order: *self.drawable_render_orders().get_unchecked(idx),
                 draw_order: *self.drawable_draw_orders().get_unchecked(idx),
                 texture_index: *self.drawable_texture_indices().get_unchecked(idx),
                 indices: self.drawable_indices().get_unchecked(idx),
-                vertex_position: self.drawable_vertex_positions(idx),
-                vertex_uv: self.drawable_vertex_uvs(idx),
+                vertex_positions: self.drawable_vertex_positions(idx),
+                vertex_uvs: self.drawable_vertex_uvs(idx),
                 opacity: *self.drawable_opacities().get_unchecked(idx),
                 masks: self.drawable_masks().get_unchecked(idx),
                 constant_flags: *self.drawable_constant_flags().get_unchecked(idx),
@@ -284,17 +285,6 @@ impl Model {
         unsafe {
             slice::from_raw_parts(
                 ffi::csmGetDrawableDrawOrders(self.as_ptr()),
-                self.drawable_count(),
-            )
-        }
-    }
-
-    /// Returns the number of vertices of this model.
-    #[inline]
-    fn drawable_vertex_counts(&self) -> &[i32] {
-        unsafe {
-            slice::from_raw_parts(
-                ffi::csmGetDrawableVertexCounts(self.as_ptr()),
                 self.drawable_count(),
             )
         }
@@ -500,16 +490,19 @@ pub struct PartMut<'model> {
 /// A drawable of a model.
 #[derive(Copy, Clone, Debug)]
 pub struct Drawable<'model> {
-    render_order: i32,
-    draw_order: i32,
-    texture_index: i32,
-    indices: &'model [u16],
-    vertex_position: &'model [[f32; 2]],
-    vertex_uv: &'model [[f32; 2]],
-    opacity: f32,
-    masks: &'model [i32],
-    constant_flags: ConstantFlags,
-    dynamic_flags: DynamicFlags,
+    // mem::size_of::<Drawable> == 768 bits!
+    // This seems to be way too big
+    pub index: usize,
+    pub render_order: i32,
+    pub draw_order: i32,
+    pub texture_index: i32,
+    pub indices: &'model [u16],
+    pub vertex_positions: &'model [[f32; 2]],
+    pub vertex_uvs: &'model [[f32; 2]],
+    pub opacity: f32,
+    pub masks: &'model [i32],
+    pub constant_flags: ConstantFlags,
+    pub dynamic_flags: DynamicFlags,
 }
 
 impl<'model> Drawable<'model> {

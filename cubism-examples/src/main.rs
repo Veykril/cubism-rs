@@ -54,11 +54,6 @@ fn main() {
     let mut imgui = Context::create();
     let (mut platform, mut imgui_renderer) = init_imgui(&mut imgui, &display);
 
-    // Load textures
-    let tex0 = load_texture(&display, &res_path.join("Haru/Haru.2048/texture_00.png"));
-    let tex1 = load_texture(&display, &res_path.join("Haru/Haru.2048/texture_01.png"));
-    let textures = [tex0, tex1];
-
     // Load our cubism model
     let mut haru = cubism::core::Model::from_bytes(
         &std::fs::read(&res_path.join("Haru/Haru.moc3")).unwrap()[..],
@@ -67,13 +62,18 @@ fn main() {
     let mut model_renderer =
         cubism_core_glium_renderer::Renderer::new(&display, haru.moc_arc()).unwrap();
 
+    // Load textures
+    let tex0 = load_texture(&display, &res_path.join("Haru/Haru.2048/texture_00.png"));
+    let tex1 = load_texture(&display, &res_path.join("Haru/Haru.2048/texture_01.png"));
+    let textures = [tex0, tex1];
+
     let gl_window = display.gl_window();
     let window = gl_window.window();
 
     // Create ImStrings versions of the ids outside of the loop to prevent constant
     // reallocations
-    let str_char_params = ImString::new("CharParams");
-    let str_char_parts = ImString::new("CharParts");
+    let str_char_params = ImString::new("Params");
+    let str_char_parts = ImString::new("Parts");
     let parameter_names = haru
         .parameter_ids()
         .iter()
@@ -131,7 +131,7 @@ fn main() {
 
         // Start the rendering
         let mut target = display.draw();
-        target.clear_color_srgb(1.0, 1.0, 1.0, 1.0);
+        target.clear_color_srgb(0.70, 0.60, 0.60, 1.0);
         // Render our model
         model_renderer
             .draw_model(&mut target, &haru, &textures)
