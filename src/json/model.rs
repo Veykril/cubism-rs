@@ -46,9 +46,16 @@ pub struct FileReferences {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Group {
-    pub target: String,
+    pub target: GroupTarget,
     pub name: String,
     pub ids: Vec<String>,
+}
+
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialOrd, PartialEq)]
+pub enum GroupTarget {
+    Parameter,
+    Part,
+    //Drawable?
 }
 
 // TODO: Might very well be just a hashmap figure out whether these names should

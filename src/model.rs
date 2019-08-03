@@ -1,12 +1,18 @@
-use core::fmt;
+use core::{fmt, ops};
 use std::{fs, io, path::Path};
 
 use cubism_core::Model;
 
-use crate::{error::CubismResult, json::model::Model3};
+use crate::{
+    controller::Controller,
+    effect::eye_blink::EyeBlink,
+    error::CubismResult,
+    json::model::{GroupTarget, Model3},
+};
 
 pub struct UserModel {
     model: Model,
+    eye_blink: Option<EyeBlink>,
 }
 
 impl UserModel {
@@ -22,10 +28,33 @@ impl UserModel {
     pub fn from_model3(base: &Path, model3: &Model3) -> CubismResult<Self> {
         if let Some(moc_path) = model3.file_references.moc.as_ref() {
             let model = Model::from_bytes(&fs::read(base.join(moc_path))?)?;
-            Ok(UserModel { model })
+            let eye_blink = Self::try_create_eye_blink(&model, model3);
+            Ok(UserModel { model, eye_blink })
         } else {
             Err(io::Error::new(io::ErrorKind::NotFound, "no moc file has been specified").into())
         }
+    }
+
+    fn try_create_eye_blink(model: &Model, model3: &Model3) -> Option<EyeBlink> {
+        let eye_blink_ids: Box<[usize]> = model3
+            .groups
+            .iter()
+            .find(|g| g.target == GroupTarget::Parameter && g.name == "EyeBlink")?
+            .ids
+            .iter()
+            .flat_map(|id| model.parameter_ids().iter().position(|id2| *id2 == *id))
+            .collect();
+
+        let mut eb = EyeBlink::default();
+        eb.set_ids(eye_blink_ids);
+        Some(eb)
+    }
+
+    pub fn update(&mut self, delta: f32) {
+        if let Some(eb) = self.eye_blink.as_mut() {
+            eb.update_parameters(&mut self.model, delta);
+        }
+        self.model.update();
     }
 
     pub fn model(&self) -> &Model {
@@ -34,6 +63,13 @@ impl UserModel {
 
     pub fn model_mut(&mut self) -> &mut Model {
         &mut self.model
+    }
+}
+
+impl ops::Deref for UserModel {
+    type Target = Model;
+    fn deref(&self) -> &Self::Target {
+        &self.model
     }
 }
 

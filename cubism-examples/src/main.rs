@@ -62,19 +62,7 @@ fn main() {
     .unwrap();
 
     // Load our cubism model
-    let mut haru = cubism::core::Model::from_bytes(
-        &std::fs::read(
-            &res_path.join(
-                haru_json
-                    .file_references
-                    .moc
-                    .as_ref()
-                    .expect("model3.json didnt specify a moc path"),
-            ),
-        )
-        .unwrap()[..],
-    )
-    .unwrap();
+    let mut haru = cubism::model::UserModel::from_model3(&res_path, &haru_json).unwrap();
     let mut model_renderer =
         cubism_core_glium_renderer::Renderer::new(&display, haru.moc_arc()).unwrap();
 
@@ -134,7 +122,7 @@ fn main() {
         ui.window(&str_char_params)
             .size([300.0, 100.0], Condition::FirstUseEver)
             .build(|| {
-                for (param, name) in haru.parameters_mut().zip(&parameter_names) {
+                for (param, name) in haru.model_mut().parameters_mut().zip(&parameter_names) {
                     ui.slider_float(name, param.value, param.min_value, param.max_value)
                         .build();
                 }
@@ -142,11 +130,16 @@ fn main() {
         ui.window(&str_char_parts)
             .size([300.0, 100.0], Condition::FirstUseEver)
             .build(|| {
-                for (opacity, name) in haru.part_opacities_mut().iter_mut().zip(&part_names) {
+                for (opacity, name) in haru
+                    .model_mut()
+                    .part_opacities_mut()
+                    .iter_mut()
+                    .zip(&part_names)
+                {
                     ui.slider_float(name, opacity, 0.0, 1.0).build();
                 }
             });
-        haru.update();
+        haru.update(delta_time);
 
         // Start the rendering
         let mut target = display.draw();

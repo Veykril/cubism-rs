@@ -7,6 +7,8 @@
 //! A framework for Live2D's cubism sdk
 pub use cubism_core as core;
 
+pub mod controller;
+pub mod effect;
 pub mod error;
 pub mod id;
 pub mod json;
