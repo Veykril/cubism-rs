@@ -4,6 +4,7 @@ use imgui_glium_renderer::Renderer;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 
 use std::{
+    fs::File,
     io::Cursor,
     iter::FromIterator,
     path::{Path, PathBuf},
@@ -42,7 +43,7 @@ fn load_texture(display: &Display, path: &Path) -> CompressedSrgbTexture2d {
 
 fn main() {
     cubism::core::set_core_logger(|s| println!("{}", s));
-    let res_path = PathBuf::from_iter(&[env!("CUBISM_CORE"), "Samples/Res"]);
+    let res_path = PathBuf::from_iter(&[env!("CUBISM_CORE"), "Samples/Res/Haru"]);
 
     // Create window and glutin context
     let mut events_loop = glutin::EventsLoop::new();
@@ -54,18 +55,36 @@ fn main() {
     let mut imgui = Context::create();
     let (mut platform, mut imgui_renderer) = init_imgui(&mut imgui, &display);
 
+    // Load model3.json
+    let haru_json = cubism::json::model::Model3::from_reader(
+        File::open(&res_path.join("Haru.model3.json")).unwrap(),
+    )
+    .unwrap();
+
     // Load our cubism model
     let mut haru = cubism::core::Model::from_bytes(
-        &std::fs::read(&res_path.join("Haru/Haru.moc3")).unwrap()[..],
+        &std::fs::read(
+            &res_path.join(
+                haru_json
+                    .file_references
+                    .moc
+                    .as_ref()
+                    .expect("model3.json didnt specify a moc path"),
+            ),
+        )
+        .unwrap()[..],
     )
     .unwrap();
     let mut model_renderer =
         cubism_core_glium_renderer::Renderer::new(&display, haru.moc_arc()).unwrap();
 
     // Load textures
-    let tex0 = load_texture(&display, &res_path.join("Haru/Haru.2048/texture_00.png"));
-    let tex1 = load_texture(&display, &res_path.join("Haru/Haru.2048/texture_01.png"));
-    let textures = [tex0, tex1];
+    let textures = haru_json
+        .file_references
+        .textures
+        .iter()
+        .map(|texpath| load_texture(&display, &res_path.join(texpath)))
+        .collect::<Vec<_>>();
 
     let gl_window = display.gl_window();
     let window = gl_window.window();

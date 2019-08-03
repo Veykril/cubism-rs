@@ -14,7 +14,7 @@ use glium::{implement_vertex, uniform};
 use core::{fmt, ptr};
 use std::{error::Error, sync::Arc};
 
-use cubism_core::{ConstantFlags, Drawable, Moc, Model};
+use cubism_core::{ConstantFlags, Drawable, DynamicFlags, Moc, Model};
 
 #[derive(Clone, Debug)]
 pub enum RendererError {
@@ -171,7 +171,8 @@ impl Renderer {
         drawable: &Drawable,
         textures: &[CompressedSrgbTexture2d],
     ) -> Result<(), RendererError> {
-        if drawable.opacity <= 0.0 {
+        let dflags = drawable.dynamic_flags;
+        if drawable.opacity <= 0.0 || !dflags.intersects(DynamicFlags::IS_VISIBLE) {
             return Ok(());
         }
         let vtx_pos = drawable.vertex_positions;

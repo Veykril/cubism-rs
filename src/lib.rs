@@ -10,3 +10,4 @@ pub use cubism_core as core;
 pub mod error;
 pub mod id;
 pub mod json;
+pub mod model;

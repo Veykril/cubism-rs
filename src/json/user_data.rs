@@ -9,7 +9,7 @@ pub struct UserData3 {
     pub user_data: Vec<UserData>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
 pub struct Meta {
     #[serde(rename = "UserDataCount")]
     pub user_data_count: usize,

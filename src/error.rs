@@ -1,5 +1,5 @@
 use core::fmt;
-use std::error;
+use std::{error, io};
 
 use cubism_core::MocError;
 
@@ -11,9 +11,11 @@ pub type CubismResult<T> = std::result::Result<T, CubismError>;
 pub enum CubismError {
     /// A moc loading error occurred while loading a model.
     Moc(MocError),
-    /// A json error that occurred while serializing or deserializing a json
+    /// A json error occurred while serializing or deserializing a json
     /// file.
     Json(serde_json::Error),
+    /// An io error occurred.
+    Io(io::Error),
 }
 
 impl error::Error for CubismError {}
@@ -22,6 +24,7 @@ impl fmt::Display for CubismError {
         match self {
             CubismError::Moc(e) => (e as &dyn fmt::Display).fmt(fmt),
             CubismError::Json(e) => (e as &dyn fmt::Display).fmt(fmt),
+            CubismError::Io(e) => (e as &dyn fmt::Display).fmt(fmt),
         }
     }
 }
@@ -35,5 +38,11 @@ impl From<MocError> for CubismError {
 impl From<serde_json::Error> for CubismError {
     fn from(e: serde_json::Error) -> Self {
         CubismError::Json(e)
+    }
+}
+
+impl From<io::Error> for CubismError {
+    fn from(e: io::Error) -> Self {
+        CubismError::Io(e)
     }
 }
