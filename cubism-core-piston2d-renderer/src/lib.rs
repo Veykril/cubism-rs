@@ -79,6 +79,12 @@ use graphics::{math::Matrix2d, DrawState, Graphics, ImageSize};
 /// Live2D Cubism renderer for [Piston](https://www.piston.rs/).
 pub struct Renderer {}
 
+impl Default for Renderer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Renderer {
     /// Initializes a renderer.
     pub fn new() -> Renderer {
@@ -106,7 +112,7 @@ impl Renderer {
         }
 
         for draw_idx in sorted_draw_indices {
-            self.draw_mesh(g, transform, model, draw_idx, textures);
+            self.draw_mesh(g, transform, model, draw_idx, textures, None);
         }
     }
 
@@ -117,12 +123,14 @@ impl Renderer {
         model: &Model,
         index: usize,
         textures: &[T],
+        draw_state: Option<DrawState>,
     ) where
         G: Graphics<Texture = T>,
         T: ImageSize,
     {
         let opacity = model.drawable_opacities()[index];
-        if opacity <= 0.0 {
+
+        if draw_state.is_none() && opacity <= 0.0 {
             return;
         }
 
@@ -130,13 +138,33 @@ impl Renderer {
         use graphics::draw_state::Blend;
 
         let blend_mode = model.drawable_constant_flags()[index];
-        let draw_state = if blend_mode.intersects(ConstantFlags::BLEND_ADDITIVE) {
-            DrawState::new_alpha().blend(Blend::Lighter)
-        } else if blend_mode.intersects(ConstantFlags::BLEND_MULTIPLICATIVE) {
-            DrawState::new_alpha().blend(Blend::Multiply)
+
+        let draw_state = if let Some(draw_state) = draw_state {
+            draw_state
         } else {
-            DrawState::new_alpha().blend(Blend::Alpha)
+            // generate masks
+            let masks = model.drawable_masks()[index];
+
+            let state = if masks.is_empty() {
+                DrawState::new_alpha()
+            } else {
+                let state = DrawState::new_clip();
+                for i in masks {
+                    self.draw_mesh(g, transform, model, *i as usize, textures, Some(state));
+                }
+
+                DrawState::new_inside()
+            };
+
+            if blend_mode.intersects(ConstantFlags::BLEND_ADDITIVE) {
+                state.blend(Blend::Lighter)
+            } else if blend_mode.intersects(ConstantFlags::BLEND_MULTIPLICATIVE) {
+                state.blend(Blend::Multiply)
+            } else {
+                state.blend(Blend::Alpha)
+            }
         };
+
         let draw_state = &draw_state;
 
         // obtain pixel-per-unit information
@@ -158,10 +186,10 @@ impl Renderer {
             let i = usize::from(*i);
 
             let [x, y] = vtx_pos[i];
-            let (x, y) = (f64::from(-x * ppu), f64::from(-y * ppu));
+            let (x, y) = (f64::from(x * ppu), f64::from(-y * ppu));
 
-            let t = [tx(transform, x, y), ty(transform, x, y)];
-            pos.push(t);
+            let tp = [tx(transform, x, y), ty(transform, x, y)];
+            pos.push(tp);
             uv.push([vtx_uv[i][0], 1.0 - vtx_uv[i][1]]);
         }
 
