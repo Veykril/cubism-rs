@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
-
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
@@ -17,13 +16,17 @@ pub struct Model3 {
 
 impl Model3 {
     #[inline]
-    pub fn from_str(s: &str) -> serde_json::Result<Self> {
-        serde_json::from_str(s)
-    }
-
-    #[inline]
     pub fn from_reader<R: std::io::Read>(r: R) -> serde_json::Result<Self> {
         serde_json::from_reader(r)
+    }
+}
+
+impl FromStr for Model3 {
+    type Err = serde_json::Error;
+
+    #[inline]
+    fn from_str(s: &str) -> serde_json::Result<Self> {
+        serde_json::from_str(s)
     }
 }
 

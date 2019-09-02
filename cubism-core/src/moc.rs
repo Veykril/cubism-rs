@@ -123,7 +123,7 @@ impl Moc {
     /// Returns true if this model is masked.
     #[inline]
     pub fn is_masked(&self) -> bool {
-        self.drawable_masks.iter().any(|m| m.len() > 0)
+        self.drawable_masks.iter().any(|m| !m.is_empty())
     }
 
     /// Returns the raw [csmMoc](../cubism_core_sys/moc/struct.csmMoc.html) ptr

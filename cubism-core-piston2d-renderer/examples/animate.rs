@@ -1,4 +1,4 @@
-use cubism::motion::Motion;
+use cubism::{expression::Expression, motion::Motion};
 use cubism_core as core;
 use cubism_core_piston2d_renderer::*;
 use glium::backend::Facade;
@@ -45,6 +45,9 @@ fn main() {
     // Initialize Live2D Cubism logger
     core::set_core_logger(|s| println!("{}", s));
 
+    // Show information
+    println!("Press X to switch expression, press M to switch motion.");
+
     // load model
     use std::{iter::FromIterator, path::PathBuf};
     let res_path = PathBuf::from_iter(&[env!("CUBISM_CORE"), "Samples/Res"]);
@@ -53,10 +56,35 @@ fn main() {
     let mut haru =
         core::Model::from_bytes(&std::fs::read(&res_path.join("Haru/Haru.moc3")).unwrap()[..])
             .expect("Failed to load model.");
-    let mut motion_idle =
-        Motion::from_motion3_json(&res_path.join("Haru/motions/haru_g_idle.motion3.json"))
-            .expect("Failed to load motion.");
-    motion_idle.play();
+    let motions_path = &[
+        "Haru/motions/haru_g_idle.motion3.json",
+        "Haru/motions/haru_g_m15.motion3.json",
+        "Haru/motions/haru_g_m06.motion3.json",
+        "Haru/motions/haru_g_m09.motion3.json",
+        "Haru/motions/haru_g_m20.motion3.json",
+        "Haru/motions/haru_g_m26.motion3.json",
+    ];
+    let expressions_path = &[
+        "Haru/expressions/F01.exp3.json",
+        "Haru/expressions/F02.exp3.json",
+        "Haru/expressions/F03.exp3.json",
+        "Haru/expressions/F04.exp3.json",
+        "Haru/expressions/F05.exp3.json",
+        "Haru/expressions/F06.exp3.json",
+        "Haru/expressions/F07.exp3.json",
+        "Haru/expressions/F08.exp3.json",
+    ];
+
+    let mut motions_index: usize = 0;
+    let mut motion = Motion::from_motion3_json(&res_path.join(motions_path[motions_index]))
+        .expect("Failed to load motion.");
+    let mut exp_index: usize = 0;
+    let mut expression = Expression::from_exp3_json(&res_path.join(expressions_path[exp_index]))
+        .expect("Failed to load expression.");
+
+    // Play motion.
+    motion.play();
+    motion.set_looped(false); // just for cosmetic...
 
     // initialize renderer
     let mut renderer = Renderer::new();
@@ -70,7 +98,9 @@ fn main() {
             let viewport = v.draw_size;
             let mut target = window.draw();
 
-            motion_idle.update(&mut haru).unwrap();
+            motion.update(&mut haru).unwrap();
+            expression.apply(&mut haru).unwrap();
+
             haru.update();
 
             g2d.draw(&mut target, v.viewport(), |c, g| {
@@ -84,8 +114,45 @@ fn main() {
 
             target.finish().unwrap();
         }
+
         if let Some(t) = e.update_args() {
-            motion_idle.tick(t.dt);
+            motion.tick(t.dt);
+        }
+
+        if let Some(b) = e.press_args() {
+            if let Button::Keyboard(key) = b {
+                match key {
+                    Key::X => {
+                        // switch expression
+                        exp_index = exp_index + 1;
+                        if exp_index == expressions_path.len() {
+                            exp_index = 0;
+                        }
+
+                        println!("Switched expression to {}", expressions_path[exp_index]);
+
+                        expression =
+                            Expression::from_exp3_json(&res_path.join(expressions_path[exp_index]))
+                                .expect("Failed to load expression.");
+                    },
+                    Key::M => {
+                        // switch motion
+                        motions_index = motions_index + 1;
+                        if motions_index == motions_path.len() {
+                            motions_index = 0;
+                        }
+
+                        println!("Switched motion to {}", motions_path[motions_index]);
+
+                        motion =
+                            Motion::from_motion3_json(&res_path.join(motions_path[motions_index]))
+                                .expect("Failed to load motion.");
+                        motion.play();
+                        motion.set_looped(false);
+                    },
+                    _ => {},
+                }
+            }
         }
     }
 }

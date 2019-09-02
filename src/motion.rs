@@ -1,7 +1,11 @@
 #![deny(missing_docs)]
 //! Motion.
 
-use std::{fs, path::Path};
+use std::{
+    fs,
+    ops::{Deref, DerefMut},
+    path::Path,
+};
 
 use crate::{
     core::Model,
@@ -18,10 +22,10 @@ fn lerp_points(p0: SegmentPoint, p1: SegmentPoint, t: f32) -> SegmentPoint {
 
 fn segment_intersects(seg: &Segment, t: f32) -> bool {
     match seg {
-        Segment::Linear(p0, p1) => p0.time <= t && t < p1.time,
-        Segment::Bezier([p0, _, _, p1]) => p0.time <= t && t < p1.time,
-        Segment::Stepped(p0, t1) => p0.time <= t && t < *t1,
-        Segment::InverseStepped(t0, p1) => *t0 <= t && t < p1.time,
+        Segment::Linear(p0, p1) => p0.time <= t && t <= p1.time,
+        Segment::Bezier([p0, _, _, p1]) => p0.time <= t && t <= p1.time,
+        Segment::Stepped(p0, t1) => p0.time <= t && t <= *t1,
+        Segment::InverseStepped(t0, p1) => *t0 <= t && t <= p1.time,
     }
 }
 
@@ -83,6 +87,10 @@ impl Motion {
             current_time: 0.0,
         }
     }
+    /// Set whether the motion loops.
+    pub fn set_looped(&mut self, looped: bool) {
+        self.looped = looped;
+    }
 
     /// Plays a motion.
     pub fn play(&mut self) {
@@ -92,6 +100,17 @@ impl Motion {
     /// Pauses a motion.
     pub fn pause(&mut self) {
         self.playing = false;
+    }
+
+    /// Stops a motion.
+    pub fn stop(&mut self) {
+        self.playing = false;
+        self.current_time = 0.0;
+    }
+
+    /// Return if the motion playing.
+    pub fn is_playing(&self) -> bool {
+        self.playing
     }
 
     /// Creates a Motion from a path of .motion3.json file.
@@ -117,8 +136,8 @@ impl Motion {
             if self.looped {
                 self.current_time -= (self.current_time / duration).floor() * duration;
             } else {
+                self.current_time = duration;
                 self.playing = false;
-                self.current_time = 0.0;
             }
         }
     }
@@ -199,5 +218,24 @@ impl Motion {
 
         // TODO: Better error handling
         Ok(())
+    }
+}
+
+impl From<Motion3> for Motion {
+    fn from(motion: Motion3) -> Self {
+        Self::new(motion)
+    }
+}
+
+impl Deref for Motion {
+    type Target = Motion3;
+    fn deref(&self) -> &Self::Target {
+        &self.json
+    }
+}
+
+impl DerefMut for Motion {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.json
     }
 }

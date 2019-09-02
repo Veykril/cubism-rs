@@ -248,11 +248,11 @@ fn json_samples_motion3() {
                 continue;
             }
 
-            let motion = serde_json::from_str::<Motion3>(
+            serde_json::from_str::<Motion3>(
                 &std::fs::read_to_string(&motion)
-                    .expect(&format!("error while reading: {:?}", motion)),
+                    .unwrap_or_else(|_| panic!("error while reading: {:?}", motion)),
             )
-            .expect(&format!("error while parsing: {:?}", motion));
+            .unwrap_or_else(|_| panic!("error while parsing: {:?}", motion));
         }
     }
 }
