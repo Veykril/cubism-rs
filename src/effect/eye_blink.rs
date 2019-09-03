@@ -2,13 +2,14 @@ use crate::controller::Controller;
 use cubism_core::Model;
 
 #[derive(Copy, Clone, Debug)]
-pub enum EyeState {
+enum EyeState {
     Open,
     Closed,
     Closing,
     Opening,
 }
 
+/// An Eye Blink controller. This Controller emulates eye blinking.
 // FIXME: sanitize timing inputs
 #[derive(Clone, Debug)]
 pub struct EyeBlink {
@@ -61,10 +62,12 @@ impl EyeBlink {
         }
     }
 
+    /// Set the parameters that are affected by this controller.
     pub fn set_ids<B: Into<Box<[usize]>>>(&mut self, parameter_ids: B) {
         self.parameter_ids = parameter_ids.into();
     }
 
+    /// Set the timings of this controller.
     pub fn set_timings(
         &mut self,
         blink_interval: f32,

@@ -1,4 +1,3 @@
-#![deny(missing_docs)]
 //! Expression.
 
 use std::{fs, path::Path};

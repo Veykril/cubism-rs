@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 pub mod expression;
 pub mod model;
 pub mod motion;

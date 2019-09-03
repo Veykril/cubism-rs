@@ -1,3 +1,4 @@
+//! A UserModel that represents a functional parsed model3.json.
 use core::{fmt, ops};
 use std::{fs, io, path::Path};
 
@@ -5,11 +6,12 @@ use cubism_core::Model;
 
 use crate::{
     controller::Controller,
-    effect::eye_blink::EyeBlink,
+    effect::EyeBlink,
     error::CubismResult,
     json::model::{GroupTarget, Model3},
 };
 
+/// A UserModel that represents a functional parsed model3.json.
 pub struct UserModel {
     model: Model,
     eye_blink: Option<EyeBlink>,
@@ -50,6 +52,7 @@ impl UserModel {
         Some(eb)
     }
 
+    /// Run the controllers and apply them to the model.
     pub fn update(&mut self, delta: f32) {
         if let Some(eb) = self.eye_blink.as_mut() {
             eb.update_parameters(&mut self.model, delta);
@@ -57,10 +60,12 @@ impl UserModel {
         self.model.update();
     }
 
+    /// The underlying core model.
     pub fn model(&self) -> &Model {
         &self.model
     }
 
+    /// The underlying core model.
     pub fn model_mut(&mut self) -> &mut Model {
         &mut self.model
     }
@@ -68,6 +73,7 @@ impl UserModel {
 
 impl ops::Deref for UserModel {
     type Target = Model;
+    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.model
     }

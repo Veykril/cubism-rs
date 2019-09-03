@@ -1,4 +1,3 @@
-#![deny(missing_docs)]
 //! Motion.
 
 use std::{
@@ -189,12 +188,14 @@ impl Motion {
                             *param.value = value;
 
                             if let Some(_value) = eye_blink {
-                                // TODO: multiply eye_blink to value if the parameter corresponds to
+                                // TODO: multiply eye_blink to value if the
+                                // parameter corresponds to
                                 // eye blinking
                             }
 
                             if let Some(_value) = lip_sync {
-                                // TODO: add eye_blink to value if the parameter corresponds to
+                                // TODO: add eye_blink to value if the parameter
+                                // corresponds to
                                 // lip-sync
                             }
                         }

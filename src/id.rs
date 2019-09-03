@@ -1,5 +1,7 @@
+#![allow(missing_docs)]
 // https://docs.live2d.com/cubism-editor-manual/standard-parametor-list/#
 
+/// Standard Part IDs
 pub mod parts {
     pub static HIT_AREA_PREFIX: &str = "HitArea";
     pub static HIT_AREA_HEAD: &str = "Head";
@@ -12,6 +14,7 @@ pub mod parts {
     pub static ARM_R_PREFIX: &str = "Parts01ArmR_";
 }
 
+/// Standard Parameter IDs
 pub mod param {
     pub static ANGLE_X: &str = "ParamAngleX";
     pub static ANGLE_Y: &str = "ParamAngleY";

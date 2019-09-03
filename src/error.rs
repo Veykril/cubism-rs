@@ -1,3 +1,4 @@
+//! Errors returned by cubism.
 use core::fmt;
 use std::{error, io};
 
