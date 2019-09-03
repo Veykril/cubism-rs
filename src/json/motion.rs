@@ -1,5 +1,4 @@
 //! Parses .motion3.json.
-#![deny(missing_docs)]
 use serde::{self, Deserialize, Serialize};
 use std::str::FromStr;
 
@@ -216,7 +215,7 @@ pub struct Motion3 {
 }
 
 impl Motion3 {
-    /// Reads .motion3.json data from a reader and returns a Motion3 structure.
+    /// Parses a Motion3 from a .motion3.json reader.
     #[inline]
     pub fn from_reader<R: std::io::Read>(r: R) -> serde_json::Result<Self> {
         serde_json::from_reader(r)
@@ -226,7 +225,7 @@ impl Motion3 {
 impl FromStr for Motion3 {
     type Err = serde_json::Error;
 
-    // Parses a .motion3.json file as a string and returns a Motion3 structure.
+    /// Parses a Motion3 from a .motion3.json string.
     #[inline]
     fn from_str(s: &str) -> serde_json::Result<Self> {
         serde_json::from_str(s)
@@ -242,17 +241,17 @@ fn json_samples_motion3() {
         let motions = std::fs::read_dir(motion_path).unwrap();
 
         for motion in motions {
-            let motion = motion.unwrap().path();
+            let motion_path = motion.unwrap().path();
 
-            if !motion.is_file() {
+            if !motion_path.is_file() {
                 continue;
             }
 
-            serde_json::from_str::<Motion3>(
-                &std::fs::read_to_string(&motion)
-                    .unwrap_or_else(|_| panic!("error while reading: {:?}", motion)),
+            Motion3::from_str(
+                &std::fs::read_to_string(&motion_path)
+                    .unwrap_or_else(|e| panic!("error while reading {:?}: {:?}", &motion_path, e)),
             )
-            .unwrap_or_else(|_| panic!("error while parsing: {:?}", motion));
+            .unwrap_or_else(|e| panic!("error while parsing {:?}: {:?}", &motion_path, e));
         }
     }
 }

@@ -15,6 +15,7 @@ pub struct Model3 {
 }
 
 impl Model3 {
+    /// Parses a Model3 from a .model3.json reader.
     #[inline]
     pub fn from_reader<R: std::io::Read>(r: R) -> serde_json::Result<Self> {
         serde_json::from_reader(r)
@@ -24,6 +25,7 @@ impl Model3 {
 impl FromStr for Model3 {
     type Err = serde_json::Error;
 
+    /// Parses a Model3 from a .model3.json string.
     #[inline]
     fn from_str(s: &str) -> serde_json::Result<Self> {
         serde_json::from_str(s)
@@ -128,10 +130,11 @@ fn json_samples_model3() {
     use std::iter::FromIterator;
     let path = std::path::PathBuf::from_iter(&[env!("CUBISM_CORE"), "Samples/Res"]);
     for model in &["Haru", "Hiyori", "Mark", "Natori"] {
-        serde_json::from_str::<Model3>(
-            &std::fs::read_to_string(&path.join([model, "/", model, ".model3.json"].concat()))
-                .unwrap(),
+        let model_path = path.join([model, "/", model, ".model3.json"].concat());
+        Model3::from_str(
+            &std::fs::read_to_string(&model_path)
+                .unwrap_or_else(|e| panic!("error while reading {:?}: {:?}", &model_path, e)),
         )
-        .unwrap();
+        .unwrap_or_else(|e| panic!("error while parsing {:?}: {:?}", &model_path, e));
     }
 }

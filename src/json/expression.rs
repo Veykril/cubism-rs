@@ -9,6 +9,24 @@ pub struct Expression3 {
     pub parameters: Vec<ExpressionParameter>,
 }
 
+impl Expression3 {
+    /// Parses a Expression3 from a .expression3.json reader.
+    #[inline]
+    pub fn from_reader<R: std::io::Read>(r: R) -> serde_json::Result<Self> {
+        serde_json::from_reader(r)
+    }
+}
+
+impl FromStr for Expression3 {
+    type Err = serde_json::Error;
+
+    /// Parses a Motion3 from a .motion3.json string.
+    #[inline]
+    fn from_str(s: &str) -> serde_json::Result<Self> {
+        serde_json::from_str(s)
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub enum ExpressionBlendType {
     Add = 0x00,
@@ -25,24 +43,6 @@ pub struct ExpressionParameter {
     pub value: f32,
 }
 
-impl Expression3 {
-    /// Reads .exp3.json data from a reader and returns a Expression3 structure.
-    #[inline]
-    pub fn from_reader<R: std::io::Read>(r: R) -> serde_json::Result<Self> {
-        serde_json::from_reader(r)
-    }
-}
-
-impl FromStr for Expression3 {
-    type Err = serde_json::Error;
-
-    // Parses a .exp3.json file as a string and returns a Expression3 structure.
-    #[inline]
-    fn from_str(s: &str) -> serde_json::Result<Self> {
-        serde_json::from_str(s)
-    }
-}
-
 #[test]
 fn json_samples_exp3() {
     use std::iter::FromIterator;
@@ -52,17 +52,17 @@ fn json_samples_exp3() {
         let expressions = std::fs::read_dir(exp_path).unwrap();
 
         for exp in expressions {
-            let exp = exp.unwrap().path();
+            let exp_path = exp.unwrap().path();
 
-            if !exp.is_file() {
+            if !exp_path.is_file() {
                 continue;
             }
 
-            serde_json::from_str::<Expression3>(
-                &std::fs::read_to_string(&exp)
-                    .unwrap_or_else(|_| panic!("error while reading: {:?}", exp)),
+            Expression3::from_str(
+                &std::fs::read_to_string(&exp_path)
+                    .unwrap_or_else(|e| panic!("error while reading {:?}: {:?}", &exp_path, e)),
             )
-            .unwrap_or_else(|e| panic!("error while parsing: {:?},  with error:\n{:#?}", exp, e));
+            .unwrap_or_else(|e| panic!("error while parsing {:?}: {:?}", &exp_path, e));
         }
     }
 }
