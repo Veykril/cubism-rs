@@ -21,3 +21,9 @@ pistoncore-sdl2_window = "0.63.0"
 
 [[example]]
 name = "haru"
+
+[[example]]
+name = "animate"
+
+[[example]]
+name = "ver4"

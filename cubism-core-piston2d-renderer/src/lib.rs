@@ -128,14 +128,19 @@ impl Renderer {
         G: Graphics<Texture = T>,
         T: ImageSize,
     {
+        use cubism_core::{DynamicFlags, ConstantFlags};
+        use graphics::draw_state::Blend;
+
+        let dyn_flags = model.drawable_dynamic_flags()[index];
+        if !dyn_flags.intersects(DynamicFlags::IS_VISIBLE) {
+            return;
+        }
+
         let opacity = model.drawable_opacities()[index];
 
         if draw_state.is_none() && opacity <= 0.0 {
             return;
         }
-
-        use cubism_core::ConstantFlags;
-        use graphics::draw_state::Blend;
 
         let blend_mode = model.drawable_constant_flags()[index];
 
@@ -153,7 +158,11 @@ impl Renderer {
                     self.draw_mesh(g, transform, model, *i as usize, textures, Some(state));
                 }
 
-                DrawState::new_inside()
+                if blend_mode.intersects(ConstantFlags::IS_INVERTED_MASK) {
+                    DrawState::new_outside()
+                } else {
+                    DrawState::new_inside()
+                }
             };
 
             if blend_mode.intersects(ConstantFlags::BLEND_ADDITIVE) {
