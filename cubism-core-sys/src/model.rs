@@ -7,6 +7,7 @@ pub const csmAlignofModel: usize = 16;
 pub const csmBlendAdditive: csmFlags = 1 << 0;
 pub const csmBlendMultiplicative: csmFlags = 1 << 1;
 pub const csmIsDoubleSided: csmFlags = 1 << 2;
+pub const csmIsInvertedMask: csmFlags = 1 << 3;
 
 pub const csmIsVisible: csmFlags = 1 << 0;
 pub const csmVisibilityDidChange: csmFlags = 1 << 1;

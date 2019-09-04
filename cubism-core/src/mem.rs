@@ -33,10 +33,10 @@ impl<T> Drop for AlignedMemory<T> {
     }
 }
 
-#[test]
+#[cfg(test)]
 mod test {
     #[test]
     fn test_mem_alloc() {
-        let mem = crate::mem::AlignedMemory::<u32>::alloc(100).unwrap();
+        crate::mem::AlignedMemory::<u32>::alloc(100);
     }
 }

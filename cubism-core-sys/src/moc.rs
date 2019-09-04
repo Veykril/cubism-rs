@@ -5,6 +5,7 @@ pub const csmAlignofMoc: usize = 64;
 pub const csmMocVersion_Unknown: csmMocVersion = 0;
 pub const csmMocVersion_30: csmMocVersion = 1;
 pub const csmMocVersion_33: csmMocVersion = 2;
+pub const csmMocVersion_40: csmMocVersion = 3;
 
 pub type csmMocVersion = c_uint;
 

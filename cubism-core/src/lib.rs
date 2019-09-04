@@ -26,6 +26,8 @@ bitflags::bitflags! {
         const BLEND_MULTIPLICATIVE = ffi::csmBlendMultiplicative;
         /// The drawable is double sided and therefore shouldn't be culled.
         const IS_DOUBLE_SIDED = ffi::csmIsDoubleSided;
+        /// Whether the clipping mask is inverted or not.
+        const IS_INVERTED_MASK = ffi::csmIsInvertedMask;
     }
 }
 
