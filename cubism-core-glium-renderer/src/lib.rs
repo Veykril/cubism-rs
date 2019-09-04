@@ -276,5 +276,4 @@ mod blend {
         },
         constant_value: (0.0, 0.0, 0.0, 0.0),
     };
-
 }

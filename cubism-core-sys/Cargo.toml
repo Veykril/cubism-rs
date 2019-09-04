@@ -11,3 +11,7 @@ keywords = ["live2d", "api-bindings", "cubism"]
 categories = ["external-ffi-bindings"]
 build = "build.rs"
 links = "Live2DCubismCore"
+
+[features]
+default = ["static-link"]
+static-link = []

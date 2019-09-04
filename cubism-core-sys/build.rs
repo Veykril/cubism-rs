@@ -1,23 +1,25 @@
 use std::{env, path::PathBuf};
 
-fn main() {
-    println!("cargo:rerun-if-env-changed=CUBISM_CORE");
-    let target = env::var("TARGET").unwrap();
-    let (arch, vendor, sys, abi) = {
-        let mut target_s = target.split('-');
-        (
-            target_s.next().unwrap_or(""),
-            target_s.next().unwrap_or(""),
-            target_s.next().unwrap_or(""),
-            target_s.next().unwrap_or(""),
-        )
+fn lookup_cubism_core(arch: &str, vendor: &str, sys: &str, abi: &str, linking_strategy: &str) {
+    let mut lib_dir = if let Ok(lib_dir) = env::var("CUBISM_CORE").map(PathBuf::from) {
+        lib_dir
+    } else {
+        // TODO: this won't appear unless the compilation fails.
+        println!(
+            "cargo:warning=it seems that the CUBISM_CORE environment variable is not set. \
+             Please set it to your Live2DCubismCore directory before compiling, \
+             or specify the Live2DCubismCore library manually. \
+             Check out https://github.com/Veykril/cubism-rs for more information."
+        );
+        return;
     };
-    let mut lib_dir = env::var("CUBISM_CORE").map(PathBuf::from).expect(
-        "The CUBISM_CORE environment variable hasn't been set! \
-         Please set it to your Live2DCubismCore directory before compiling. \
-         See the readme for more information.",
-    );
-    lib_dir.push("Core/lib");
+
+    if linking_strategy == "static" {
+        lib_dir.push("Core/lib");
+    } else {
+        lib_dir.push("Core/dll");
+    }
+
     match (vendor, sys) {
         ("pc", "windows") => {
             lib_dir.push("windows");
@@ -29,6 +31,17 @@ fn main() {
             lib_dir.push("140");
         },
         ("apple", "darwin") => {
+            if linking_strategy != "static" {
+                panic!(
+                    "since Live2DCubismCore is in MH_BUNDLE format (which is deprecated), \
+                     dynamic linking on macOS is not supported. \
+                     See https://github.com/Veykril/cubism-rs for more information."
+                );
+            }
+            if arch == "i686" {
+                panic!("no 32-bit support for macOS.");
+            }
+
             lib_dir.push("macos");
         },
         ("apple", "ios") => {
@@ -56,10 +69,40 @@ fn main() {
         ),
     }
     println!("cargo:rustc-link-search=all={}", lib_dir.display());
+}
+
+fn main() {
+    println!("cargo:rerun-if-env-changed=CUBISM_CORE");
+    let target = env::var("TARGET").unwrap();
+    let (arch, vendor, sys, abi) = {
+        let mut target_s = target.split('-');
+        (
+            target_s.next().unwrap_or(""),
+            target_s.next().unwrap_or(""),
+            target_s.next().unwrap_or(""),
+            target_s.next().unwrap_or(""),
+        )
+    };
+
+    let linking_strategy = if cfg!(feature = "static-link") {
+        "static"
+    } else {
+        "dylib"
+    };
+
+    lookup_cubism_core(arch, vendor, sys, abi, linking_strategy);
+
     let profile = env::var("PROFILE").unwrap_or_default();
+
     match (vendor, sys, &*profile) {
-        ("pc", "windows", "debug") => println!("cargo:rustc-link-lib=static=Live2DCubismCore_MTd"),
-        ("pc", "windows", "release") => println!("cargo:rustc-link-lib=static=Live2DCubismCore_MT"),
-        _ => println!("cargo:rustc-link-lib=static=Live2DCubismCore"),
+        ("pc", "windows", "debug") => println!(
+            "cargo:rustc-link-lib={}=Live2DCubismCore_MTd",
+            linking_strategy
+        ),
+        ("pc", "windows", "release") => println!(
+            "cargo:rustc-link-lib={}=Live2DCubismCore_MT",
+            linking_strategy
+        ),
+        _ => println!("cargo:rustc-link-lib={}=Live2DCubismCore", linking_strategy),
     }
 }
