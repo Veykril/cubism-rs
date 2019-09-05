@@ -47,7 +47,7 @@ fn main() {
 
     // Create window and glutin context
     let mut events_loop = glutin::EventsLoop::new();
-    let wb = glutin::WindowBuilder::new();
+    let wb = glutin::WindowBuilder::new().with_title("cubism-rs debug app");
     let cb = glutin::ContextBuilder::new().with_vsync(true);
     let display = glium::Display::new(wb, cb, &events_loop).unwrap();
 
@@ -81,6 +81,8 @@ fn main() {
     // reallocations
     let str_char_params = ImString::new("Params");
     let str_char_parts = ImString::new("Parts");
+    let str_char_expressions = ImString::new("Expressions");
+    let str_char_expressions_weight = ImString::new("Weight");
     let parameter_names = haru
         .parameter_ids()
         .iter()
@@ -91,6 +93,15 @@ fn main() {
         .iter()
         .map(|id| ImString::new(*id))
         .collect::<Vec<_>>();
+    let _exp_names = haru
+        .expressions()
+        .keys()
+        .map(|id| ImString::new(id))
+        .chain(std::iter::once(ImString::new("__None__")))
+        .collect::<Vec<_>>();
+    let exp_names = _exp_names.iter().map(|id| &*id).collect::<Vec<_>>();
+    let mut exp_weight = 0.0;
+    let mut current_expr = exp_names.len() as i32 - 1;
     let mut last_frame = Instant::now();
     loop {
         let mut exit = false;
@@ -119,8 +130,10 @@ fn main() {
         ui.main_menu_bar(|| {
             ui.label_text(&imgui::im_str!("Delta: {}", delta_time), &ImString::new(""));
         });
+        haru.load_parameters();
         ui.window(&str_char_params)
-            .size([300.0, 100.0], Condition::FirstUseEver)
+            .position([0.0, 20.0], Condition::Once)
+            .size([362.0, 748.0], Condition::Once)
             .build(|| {
                 for (param, name) in haru.model_mut().parameters_mut().zip(&parameter_names) {
                     ui.slider_float(name, param.value, param.min_value, param.max_value)
@@ -128,7 +141,8 @@ fn main() {
                 }
             });
         ui.window(&str_char_parts)
-            .size([300.0, 100.0], Condition::FirstUseEver)
+            .position([662.0, 20.0], Condition::Once)
+            .size([362.0, 480.0], Condition::Once)
             .build(|| {
                 for (opacity, name) in haru
                     .model_mut()
@@ -139,6 +153,18 @@ fn main() {
                     ui.slider_float(name, opacity, 0.0, 1.0).build();
                 }
             });
+        ui.window(&str_char_expressions)
+            .position([362.0, 20.0], Condition::Once)
+            .size([300.0, 100.0], Condition::Once)
+            .build(|| {
+                if ui.combo(&str_char_expressions, &mut current_expr, &*exp_names, 10) {
+                    haru.set_expression(exp_names[current_expr as usize].to_str());
+                }
+                ui.slider_float(&str_char_expressions_weight, &mut exp_weight, 0.0, 1.0)
+                    .build();
+                haru.set_expression_weight(exp_weight);
+            });
+        haru.save_parameters();
         haru.update(delta_time);
 
         // Start the rendering

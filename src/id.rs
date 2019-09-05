@@ -1,6 +1,12 @@
 #![allow(missing_docs)]
 // https://docs.live2d.com/cubism-editor-manual/standard-parametor-list/#
 
+/// Common Group IDs
+pub mod groups {
+    pub static EYE_BLINK: &str = "EyeBlink";
+    pub static LIP_SYNC: &str = "LipSync";
+}
+
 /// Standard Part IDs
 pub mod parts {
     pub static HIT_AREA_PREFIX: &str = "HitArea";

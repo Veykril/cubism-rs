@@ -79,8 +79,9 @@ fn main() {
     let mut motion = Motion::from_motion3_json(&res_path.join(motions_path[motions_index]))
         .expect("Failed to load motion.");
     let mut exp_index: usize = 0;
-    let mut expression = Expression::from_exp3_json(&res_path.join(expressions_path[exp_index]))
-        .expect("Failed to load expression.");
+    let mut expression =
+        Expression::from_exp3_json(&haru, &res_path.join(expressions_path[exp_index]))
+            .expect("Failed to load expression.");
 
     // Play motion.
     motion.play();
@@ -98,8 +99,8 @@ fn main() {
             let viewport = v.draw_size;
             let mut target = window.draw();
 
-            motion.update(&mut haru).unwrap();
-            expression.apply(&mut haru).unwrap();
+            motion.update(&mut haru);
+            expression.apply(&mut haru, 1.0);
 
             haru.update();
 
@@ -131,9 +132,11 @@ fn main() {
 
                         println!("Switched expression to {}", expressions_path[exp_index]);
 
-                        expression =
-                            Expression::from_exp3_json(&res_path.join(expressions_path[exp_index]))
-                                .expect("Failed to load expression.");
+                        expression = Expression::from_exp3_json(
+                            &haru,
+                            &res_path.join(expressions_path[exp_index]),
+                        )
+                        .expect("Failed to load expression.");
                     },
                     Key::M => {
                         // switch motion
