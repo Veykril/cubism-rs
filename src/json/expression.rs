@@ -1,6 +1,9 @@
+// Parses .exp3.json.
+
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
+/// Rust structure representation for .exp3.json file.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Expression3 {
@@ -20,7 +23,7 @@ impl Expression3 {
 impl FromStr for Expression3 {
     type Err = serde_json::Error;
 
-    /// Parses a Motion3 from a .motion3.json string.
+    /// Parses a Expression3 from a .expression3.json string.
     #[inline]
     fn from_str(s: &str) -> serde_json::Result<Self> {
         serde_json::from_str(s)

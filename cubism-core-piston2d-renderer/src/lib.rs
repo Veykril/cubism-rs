@@ -128,7 +128,7 @@ impl Renderer {
         G: Graphics<Texture = T>,
         T: ImageSize,
     {
-        use cubism_core::{DynamicFlags, ConstantFlags};
+        use cubism_core::{ConstantFlags, DynamicFlags};
         use graphics::draw_state::Blend;
 
         let dyn_flags = model.drawable_dynamic_flags()[index];
