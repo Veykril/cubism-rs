@@ -114,8 +114,6 @@ pub struct Vec2D {
     y: f32,
 }
 
-/*  */
-
 impl Physics3 {
     /// Parses a Physics3 from a .physics3.json reader.
     #[inline]
@@ -137,14 +135,14 @@ impl FromStr for Physics3 {
 #[test]
 fn json_samples_physics3() {
     use std::iter::FromIterator;
-    let path = std::path::PathBuf::from_iter(&[
-        env!("CUBISM_CORE"),
-        "Samples/Res/Rice/Rice.physics3.json",
-    ]);
+    let path = std::path::PathBuf::from_iter(&[env!("CUBISM_CORE"), "Samples/Res"]);
+    for model in &["Rice", "Hiyori", "Mark", "Natori"] {
+        let path = path.join([model, "/", model, ".physics3.json"].concat());
 
-    Physics3::from_str(
-        &std::fs::read_to_string(&path)
-            .unwrap_or_else(|e| panic!("error while reading {:?}: {:?}", &path, e)),
-    )
-    .unwrap_or_else(|e| panic!("error while parsing {:?}: {:?}", &path, e));
+        Physics3::from_str(
+            &std::fs::read_to_string(&path)
+                .unwrap_or_else(|e| panic!("error while reading {:?}: {:?}", &path, e)),
+        )
+        .unwrap_or_else(|e| panic!("error while parsing {:?}: {:?}", &path, e));
+    }
 }

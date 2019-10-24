@@ -1,6 +1,6 @@
-#![deny(
-    missing_docs,
-    bare_trait_objects,
+#![deny(missing_docs, bare_trait_objects)]
+#![warn(
+    clippy::all,
     missing_copy_implementations,
     missing_debug_implementations
 )]

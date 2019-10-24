@@ -7,6 +7,8 @@ pub struct Pose3 {
     #[serde(rename = "Type")]
     pub file_type: String,
     pub groups: Vec<PoseGroup>,
+    #[serde(rename = "FadeInTime", default = "Pose3::fade_in_time_default")]
+    pub fade_in_time: f32,
 }
 
 impl Pose3 {
@@ -14,6 +16,10 @@ impl Pose3 {
     #[inline]
     pub fn from_reader<R: std::io::Read>(r: R) -> serde_json::Result<Self> {
         serde_json::from_reader(r)
+    }
+
+    fn fade_in_time_default() -> f32 {
+        0.5
     }
 }
 

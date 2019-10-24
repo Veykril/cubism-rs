@@ -156,7 +156,7 @@ mod segment_parser {
 
                         last_point = next_point;
                     },
-                    _ => Err(de::Error::custom("invalid segment format."))?,
+                    _ => return Err(de::Error::custom("invalid segment format.")),
                 }
             }
 

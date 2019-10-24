@@ -99,7 +99,8 @@ impl UserModel {
 
     /// Saves the current parameter values of this model in a hidden snapshot.
     pub fn save_parameters(&mut self) {
-        self.parameter_snapshot = self.model.parameter_values().into();
+        self.parameter_snapshot
+            .copy_from_slice(self.model.parameter_values());
     }
 
     /// Loads the parameters of the hidden snapshot into the current parameter
