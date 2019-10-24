@@ -1,5 +1,4 @@
-use core::{ptr, slice};
-use std::{ffi::CStr, ptr::NonNull};
+use std::{ffi::CStr, ptr, ptr::NonNull, slice};
 
 use ffi::{csmMoc, csmModel};
 

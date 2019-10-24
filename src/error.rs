@@ -1,6 +1,5 @@
 //! Errors returned by cubism.
-use core::fmt;
-use std::{error, io};
+use std::{error, fmt, io};
 
 use cubism_core::MocError;
 

@@ -1,5 +1,4 @@
-use core::{mem, ptr::NonNull};
-use std::alloc;
+use std::{alloc, mem, ptr::NonNull};
 
 #[derive(Debug)]
 pub struct AlignedMemory<T> {

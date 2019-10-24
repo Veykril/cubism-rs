@@ -11,8 +11,7 @@ use glium::{
 
 use glium::{implement_vertex, uniform};
 
-use core::{fmt, ptr};
-use std::{error::Error, sync::Arc};
+use std::{error::Error, fmt, ptr, sync::Arc};
 
 use cubism_core::{ConstantFlags, Drawable, DynamicFlags, Moc, Model};
 

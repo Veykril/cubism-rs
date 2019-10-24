@@ -1,5 +1,4 @@
-use core::fmt;
-use std::error;
+use std::{error, fmt};
 
 /// The result type, returned by this library.
 pub type MocResult<T> = std::result::Result<T, MocError>;

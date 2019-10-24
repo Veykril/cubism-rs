@@ -1,6 +1,8 @@
 // Inspired by the log crate
-use core::sync::atomic::{AtomicUsize, Ordering};
-use std::ffi::CStr;
+use std::{
+    ffi::CStr,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 const UNINITIALIZED: usize = 0;
 const INITIALIZING: usize = 1;
