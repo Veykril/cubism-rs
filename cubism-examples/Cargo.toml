@@ -16,6 +16,6 @@ cubism-core-glium-renderer = { version = "0.1.0", path = "../cubism-core-glium-r
 glium = "^0.25"
 image = "^0.22"
 
-imgui = "^0.1"
-imgui-winit-support = "^0.1"
-imgui-glium-renderer = "^0.1"
+imgui = "^0.2"
+imgui-winit-support = "^0.2"
+imgui-glium-renderer = "^0.2"

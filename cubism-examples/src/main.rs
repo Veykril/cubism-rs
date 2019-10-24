@@ -101,7 +101,7 @@ fn main() {
         .collect::<Vec<_>>();
     let exp_names = _exp_names.iter().map(|id| &*id).collect::<Vec<_>>();
     let mut exp_weight = 0.0;
-    let mut current_expr = exp_names.len() as i32 - 1;
+    let mut current_expr = exp_names.len() as usize - 1;
     let mut last_frame = Instant::now();
     loop {
         let mut exit = false;
@@ -131,37 +131,41 @@ fn main() {
             ui.label_text(&imgui::im_str!("Delta: {}", delta_time), &ImString::new(""));
         });
         haru.load_parameters();
-        ui.window(&str_char_params)
+        imgui::Window::new(&str_char_params)
             .position([0.0, 20.0], Condition::Once)
             .size([362.0, 748.0], Condition::Once)
-            .build(|| {
+            .build(&ui, || {
                 for (param, name) in haru.model_mut().parameters_mut().zip(&parameter_names) {
-                    ui.slider_float(name, param.value, param.min_value, param.max_value)
-                        .build();
+                    imgui::Slider::new(name, param.min_value..=param.max_value)
+                        .build(&ui, param.value);
                 }
             });
-        ui.window(&str_char_parts)
+        imgui::Window::new(&str_char_parts)
             .position([662.0, 20.0], Condition::Once)
             .size([362.0, 480.0], Condition::Once)
-            .build(|| {
+            .build(&ui, || {
                 for (opacity, name) in haru
                     .model_mut()
                     .part_opacities_mut()
                     .iter_mut()
                     .zip(&part_names)
                 {
-                    ui.slider_float(name, opacity, 0.0, 1.0).build();
+                    imgui::Slider::new(name, 0.0..=1.0).build(&ui, opacity);
                 }
             });
-        ui.window(&str_char_expressions)
+        imgui::Window::new(&str_char_expressions)
             .position([362.0, 20.0], Condition::Once)
             .size([300.0, 100.0], Condition::Once)
-            .build(|| {
-                if ui.combo(&str_char_expressions, &mut current_expr, &*exp_names, 10) {
+            .build(&ui, || {
+                if imgui::ComboBox::new(&str_char_expressions).build_simple_string(
+                    &ui,
+                    &mut current_expr,
+                    &*exp_names,
+                ) {
                     haru.set_expression(exp_names[current_expr as usize].to_str());
                 }
-                ui.slider_float(&str_char_expressions_weight, &mut exp_weight, 0.0, 1.0)
-                    .build();
+                imgui::Slider::new(&str_char_expressions_weight, 0.0..=1.0)
+                    .build(&ui, &mut exp_weight);
                 haru.set_expression_weight(exp_weight);
             });
         haru.save_parameters();

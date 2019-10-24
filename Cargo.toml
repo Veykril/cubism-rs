@@ -11,13 +11,17 @@ keywords = ["live2d", "api-bindings", "cubism"]
 categories = ["api-bindings"]
 
 [dependencies]
-cubism-core = { version = "0.1.0", path = "cubism-core"}
+cubism-core = { version = "0.1.0", path = "cubism-core", default-features = false }
 serde_json = "^1.0"
-fixedbitset = "^0.1"
+fixedbitset = "^0.2"
 
 [dependencies.serde]
 version = "^1.0"
 features = ["derive"]
+
+[features]
+default = ["static-link"]
+static-link = ["cubism-core/static-link"]
 
 [workspace]
 members = ["cubism-core-sys", "cubism-core", "cubism-core-glium-renderer", "cubism-examples", "cubism-core-piston2d-renderer"]

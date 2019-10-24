@@ -11,5 +11,8 @@ keywords = ["live2d", "api-bindings", "cubism"]
 categories = ["api-bindings"]
 
 [dependencies]
-ffi = { package = "cubism-core-sys", version = "0.1.0", path = "../cubism-core-sys"}
-bitflags = "^1.1"
+ffi = { package = "cubism-core-sys", version = "0.1.0", path = "../cubism-core-sys", default-features = false }
+bitflags = "1"
+
+[features]
+static-link = ["ffi/static-link"]
