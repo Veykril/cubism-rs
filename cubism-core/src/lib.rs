@@ -1,3 +1,10 @@
+#![deny(missing_docs, rust_2018_idioms)]
+#![warn(
+    clippy::all,
+    missing_copy_implementations,
+    missing_debug_implementations
+)]
+
 //! Rust bindings for Live2D's cubism sdk
 
 mod error;

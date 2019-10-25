@@ -31,7 +31,7 @@ impl Model {
 
     /// Returns the first parameter with the given name, or `None` if there is
     /// none with the given name.
-    pub fn parameter(&self, name: &str) -> Option<Parameter> {
+    pub fn parameter(&self, name: &str) -> Option<Parameter<'_>> {
         self.parameter_ids()
             .iter()
             .enumerate()
@@ -46,7 +46,7 @@ impl Model {
 
     /// Returns the first parameter with the given name, or `None` if there is
     /// none with the given name.
-    pub fn parameter_mut(&mut self, name: &str) -> Option<ParameterMut> {
+    pub fn parameter_mut(&mut self, name: &str) -> Option<ParameterMut<'_>> {
         if let Some(idx) = self.parameter_ids().iter().position(|id| *id == name) {
             Some(self.parameter_at_mut(idx))
         } else {
@@ -58,7 +58,7 @@ impl Model {
     ///
     /// # Panics
     /// Panics on out of bounds access.
-    pub fn parameter_at(&self, idx: usize) -> Parameter {
+    pub fn parameter_at(&self, idx: usize) -> Parameter<'_> {
         // Do manual bounds checking since all slices have the same length
         assert!(idx < self.parameter_count());
         unsafe {
@@ -76,7 +76,7 @@ impl Model {
     ///
     /// # Panics
     /// Panics on out of bounds access.
-    pub fn parameter_at_mut(&mut self, idx: usize) -> ParameterMut {
+    pub fn parameter_at_mut(&mut self, idx: usize) -> ParameterMut<'_> {
         // Do manual bounds checking since all slices have the same length
         assert!(idx < self.parameter_count());
         unsafe {
@@ -95,7 +95,7 @@ impl Model {
 
     /// Returns the first part with the given name, or `None` if there is none
     /// with the given name.
-    pub fn part(&self, name: &str) -> Option<Part> {
+    pub fn part(&self, name: &str) -> Option<Part<'_>> {
         self.part_ids().iter().enumerate().find_map(|(idx, id)| {
             if *id == name {
                 Some(self.part_at(idx))
@@ -107,7 +107,7 @@ impl Model {
 
     /// Returns the first part with the given name, or `None` if there is none
     /// with the given name.
-    pub fn part_mut(&mut self, name: &str) -> Option<PartMut> {
+    pub fn part_mut(&mut self, name: &str) -> Option<PartMut<'_>> {
         if let Some(idx) = self.part_ids().iter().position(|id| *id == name) {
             Some(self.part_at_mut(idx))
         } else {
@@ -120,7 +120,7 @@ impl Model {
     /// # Panics
     /// Panics on out of bounds access.
     #[inline]
-    pub fn part_at(&self, idx: usize) -> Part {
+    pub fn part_at(&self, idx: usize) -> Part<'_> {
         Part {
             id: &self.moc.part_ids()[idx],
             opacity: self.part_opacities()[idx],
@@ -132,7 +132,7 @@ impl Model {
     /// # Panics
     /// Panics on out of bounds access.
     #[inline]
-    pub fn part_at_mut(&mut self, idx: usize) -> PartMut {
+    pub fn part_at_mut(&mut self, idx: usize) -> PartMut<'_> {
         PartMut {
             id: &self.moc.part_ids[idx],
             opacity: &mut self.part_opacities_mut()[idx],
@@ -141,7 +141,7 @@ impl Model {
 
     /// Returns the first drawable with the given name, or `None` if there is
     /// none with the given name.
-    pub fn drawable(&self, name: &str) -> Option<Drawable> {
+    pub fn drawable(&self, name: &str) -> Option<Drawable<'_>> {
         self.drawable_ids()
             .iter()
             .enumerate()
@@ -158,7 +158,7 @@ impl Model {
     ///
     /// # Panics
     /// Panics on out of bounds access.
-    pub fn drawable_at(&self, idx: usize) -> Drawable {
+    pub fn drawable_at(&self, idx: usize) -> Drawable<'_> {
         // Do manual bounds checking since all slices have the same length
         assert!(idx < self.drawable_count());
         unsafe {
@@ -221,8 +221,9 @@ impl Model {
         self.part_opacities_mut()[idx] = val;
     }
 
+    /// Returns the parent of the part at the given index.
     #[inline]
-    pub fn part_parent(&self, idx: usize) -> Option<Part> {
+    pub fn part_parent(&self, idx: usize) -> Option<Part<'_>> {
         self.part_parents()
             .get(idx)
             .filter(|i| **i != -1)
@@ -356,7 +357,7 @@ impl Model {
 
     /// Returns an iterator over the model's parameters.
     #[inline]
-    pub fn parameters(&self) -> ParameterIter {
+    pub fn parameters(&self) -> ParameterIter<'_> {
         ParameterIter {
             model: self,
             idx: 0,
@@ -365,7 +366,7 @@ impl Model {
 
     /// Returns an iterator over the model's parameters.
     #[inline]
-    pub fn parameters_mut(&mut self) -> ParameterIterMut {
+    pub fn parameters_mut(&mut self) -> ParameterIterMut<'_> {
         ParameterIterMut {
             model: self,
             idx: 0,
@@ -374,7 +375,7 @@ impl Model {
 
     /// Returns an iterator over the model's parts.
     #[inline]
-    pub fn parts(&self) -> PartIter {
+    pub fn parts(&self) -> PartIter<'_> {
         PartIter {
             model: self,
             idx: 0,
@@ -383,7 +384,7 @@ impl Model {
 
     /// Returns an iterator over the model's parts.
     #[inline]
-    pub fn parts_mut(&mut self) -> PartIterMut {
+    pub fn parts_mut(&mut self) -> PartIterMut<'_> {
         PartIterMut {
             model: self,
             idx: 0,
@@ -392,7 +393,7 @@ impl Model {
 
     /// Returns an iterator over the model's parts.
     #[inline]
-    pub fn drawables(&self) -> DrawableIter {
+    pub fn drawables(&self) -> DrawableIter<'_> {
         DrawableIter {
             model: self,
             idx: 0,
@@ -455,34 +456,48 @@ unsafe impl Sync for Model {}
 /// A parameter of a model.
 #[derive(Copy, Clone, Debug)]
 pub struct Parameter<'model> {
+    /// The parameter's identifier
     pub id: &'model str,
+    /// The parameter's current value    
     pub value: f32,
+    /// The parameter's minimum value
     pub min_value: f32,
+    /// The parameter's maximum value
     pub max_value: f32,
+    /// The parameter's default value
     pub default_value: f32,
 }
 
 /// A parameter of a model.
 #[derive(Debug)]
 pub struct ParameterMut<'model> {
+    /// The parameter's identifier
     pub id: &'model str,
+    /// The parameter's current value    
     pub value: &'model mut f32,
+    /// The parameter's minimum value
     pub min_value: f32,
+    /// The parameter's maximum value
     pub max_value: f32,
+    /// The parameter's default value
     pub default_value: f32,
 }
 
 /// A part of a model.
 #[derive(Copy, Clone, Debug)]
 pub struct Part<'model> {
+    /// The part's identifier
     pub id: &'model str,
+    /// The part's current opacity
     pub opacity: f32,
 }
 
 /// A part of a model.
 #[derive(Debug)]
 pub struct PartMut<'model> {
+    /// The part's identifier
     pub id: &'model str,
+    /// The part's current opacity
     pub opacity: &'model mut f32,
 }
 
@@ -491,27 +506,39 @@ pub struct PartMut<'model> {
 pub struct Drawable<'model> {
     // mem::size_of::<Drawable> == 768 bits!
     // This seems to be way too big
+    /// The drawable index.
     pub index: usize,
+    /// The drawable's render order.
     pub render_order: i32,
+    /// The drawable's draw order(where is the difference to the render order?).
     pub draw_order: i32,
+    /// The drawable's texture index.
     pub texture_index: i32,
+    /// The drawable's indices.
     pub indices: &'model [u16],
+    /// The drawable's vertex positions.
     pub vertex_positions: &'model [[f32; 2]],
+    /// The drawable's uvs.
     pub vertex_uvs: &'model [[f32; 2]],
+    /// The drawable's opacity.
     pub opacity: f32,
+    /// The drawable's masks.
     pub masks: &'model [i32],
+    /// The drawable's constant drawing flags.
     pub constant_flags: ConstantFlags,
+    /// The drawable's dynamic drawing flags.
     pub dynamic_flags: DynamicFlags,
 }
 
 impl<'model> Drawable<'model> {
+    /// Returns whether this drawable is masked or not.
     pub fn is_masked(&self) -> bool {
         !self.masks.is_empty()
     }
 }
 
 /// An iterator that iterates over a model's parameters.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ParameterIter<'model> {
     model: &'model Model,
     idx: usize,
@@ -539,6 +566,7 @@ impl<'model> Iterator for ParameterIter<'model> {
 }
 
 /// An iterator that iterates over a model's parameters.
+#[derive(Debug)]
 pub struct ParameterIterMut<'model> {
     model: &'model mut Model,
     idx: usize,
@@ -568,7 +596,7 @@ impl<'model> Iterator for ParameterIterMut<'model> {
 }
 
 /// An iterator that iterates over a model's parts.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PartIter<'model> {
     model: &'model Model,
     idx: usize,
@@ -596,6 +624,7 @@ impl<'model> Iterator for PartIter<'model> {
 }
 
 /// An iterator that iterates over a model's parts.
+#[derive(Debug)]
 pub struct PartIterMut<'model> {
     model: &'model mut Model,
     idx: usize,
@@ -625,7 +654,7 @@ impl<'model> Iterator for PartIterMut<'model> {
 }
 
 /// An iterator that iterates over a model's parameters.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DrawableIter<'model> {
     model: &'model Model,
     idx: usize,

@@ -6,7 +6,7 @@ pub type MocResult<T> = std::result::Result<T, MocError>;
 /// An error returned by [`Model::from_bytes`].
 ///
 /// [`Model::from_bytes`]: ../struct.Model.html#method.from_bytes
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum MocError {
     /// The moc version of the data passed is too old and therefore cannot be
     /// loaded.
