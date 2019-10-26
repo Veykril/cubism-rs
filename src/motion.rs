@@ -14,8 +14,8 @@ use crate::{
 
 fn lerp_points(p0: SegmentPoint, p1: SegmentPoint, t: f32) -> SegmentPoint {
     SegmentPoint {
-        time: p0.time + (p1.time - p0.time) * t,
-        value: p0.value + (p1.value - p0.value) * t,
+        time: (p1.time - p0.time).mul_add(t, p0.time),
+        value: (p1.value - p0.value).mul_add(t, p0.value),
     }
 }
 
@@ -34,7 +34,7 @@ fn segment_interpolate(seg: &Segment, t: f32) -> f32 {
             let k = (t - p0.time) / (p1.time - p0.time);
 
             if k > 0.0 {
-                p0.value + (p1.value - p0.value) * k
+                (p1.value - p0.value).mul_add(k, p0.value)
             } else {
                 p0.value
             }

@@ -52,8 +52,8 @@ impl Expression {
         for (id, blend_type, value) in self.parameters.iter().copied() {
             let model_value = &mut model.parameter_values_mut()[id];
             *model_value = match blend_type {
-                ExpressionBlendType::Add => *model_value + value * weight,
-                ExpressionBlendType::Multiply => *model_value * (1.0 + (value - 1.0) * weight),
+                ExpressionBlendType::Add => value.mul_add(weight, *model_value),
+                ExpressionBlendType::Multiply => *model_value * (value - 1.0).mul_add(weight, 1.0),
                 ExpressionBlendType::Overwrite => value * weight,
             };
         }
