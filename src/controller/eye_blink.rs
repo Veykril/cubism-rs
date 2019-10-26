@@ -124,4 +124,8 @@ impl Controller for EyeBlink {
             model.parameter_values_mut()[par] = val;
         }
     }
+
+    fn priority(&self) -> usize {
+        crate::controller::default_priorities::EYE_BLINK
+    }
 }

@@ -1,13 +1,12 @@
 //! A UserModel that represents a functional parsed model3.json.
-use fixedbitset::FixedBitSet;
+use fxhash::FxHashMap;
 
-use std::{collections::HashMap, fmt, fs, io, ops, path::Path};
+use std::{fmt, fs, io, ops, path::Path};
 
 use cubism_core::Model;
 
 use crate::{
-    controller::Controller,
-    effect::EyeBlink,
+    controller::{ControllerMap, EyeBlink},
     error::CubismResult,
     expression::Expression,
     json::model::{GroupTarget, Model3},
@@ -17,12 +16,9 @@ use crate::{
 pub struct UserModel {
     model: Model,
     // registered controllers
-    controllers: Vec<Box<dyn Controller>>,
-    // mapping from name to index into the controllers array
-    controllers_rev_map: HashMap<String, usize>,
-    controllers_enabled: FixedBitSet,
+    controller_map: ControllerMap,
     // loaded expressions
-    expressions: HashMap<String, Expression>,
+    expressions: FxHashMap<String, Expression>,
     current_expression: Option<String>,
     expression_weight: f32,
     // saved snapshot of the models parameter for reloading
@@ -35,10 +31,8 @@ impl UserModel {
         let parameter_snapshot = model.parameter_values().into();
         Self {
             model,
-            controllers: Vec::new(),
-            controllers_rev_map: HashMap::new(),
-            controllers_enabled: FixedBitSet::with_capacity(0),
-            expressions: HashMap::new(),
+            controller_map: ControllerMap::new(),
+            expressions: FxHashMap::default(),
             current_expression: None,
             expression_weight: 1.0,
             parameter_snapshot,
@@ -73,7 +67,8 @@ impl UserModel {
                 .collect::<CubismResult<_>>()?;
 
             if let Some(eye_blink) = Self::try_create_eye_blink(&this.model, model3) {
-                this.add_controller(crate::id::groups::EYE_BLINK.to_owned(), eye_blink);
+                this.controller_map
+                    .insert(crate::id::groups::EYE_BLINK.to_owned(), eye_blink);
             }
 
             Ok(this)
@@ -117,28 +112,6 @@ impl UserModel {
             .swap_with_slice(self.model.parameter_values_mut());
     }
 
-    /// Adds a new controller to this model with the given name. Returns the
-    /// slot it has been moved into that determines the execution order.
-    /// The controller is toggled off by default
-    pub fn add_controller<S: Into<String>, C: Controller + 'static>(
-        &mut self,
-        name: S,
-        controller: C,
-    ) -> usize {
-        let idx = self.controllers.len();
-        self.controllers.push(Box::new(controller));
-        self.controllers_rev_map.insert(name.into(), idx);
-        self.controllers_enabled.grow(idx + 1);
-        idx
-    }
-
-    /// Enables the controller at the specified index.
-    pub fn controller_enable(&mut self, idx: usize, enabled: bool) {
-        if idx < self.controllers.len() {
-            self.controllers_enabled.set(idx, enabled);
-        }
-    }
-
     /// Loads an expression from a json file at the given path and adds it with
     /// the given name. If an expression with the given name already exists it
     /// will be replaced by the new one, returning the previous expression.
@@ -169,7 +142,7 @@ impl UserModel {
     }
 
     /// The currently loaded expressions.
-    pub fn expressions(&self) -> &HashMap<String, Expression> {
+    pub fn expressions(&self) -> &FxHashMap<String, Expression> {
         &self.expressions
     }
 
@@ -184,9 +157,8 @@ impl UserModel {
                 exp.apply(&mut self.model, self.expression_weight);
             }
         }
-        for con in self.controllers_enabled.ones() {
-            self.controllers[con].update_parameters(&mut self.model, delta);
-        }
+        self.controller_map
+            .update_enabled_controllers(&mut self.model, delta);
         self.model.update();
     }
 
