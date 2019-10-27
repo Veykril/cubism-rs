@@ -6,11 +6,11 @@ use std::{path::PathBuf, str::FromStr};
 #[serde(rename_all = "PascalCase")]
 pub struct Model3 {
     pub version: usize,
-    #[serde(default, rename = "FileReferences")]
+    #[serde(default)]
     pub file_references: FileReferences,
     #[serde(default)]
     pub groups: Vec<Group>,
-    #[serde(default, rename = "HitAreas")]
+    #[serde(default)]
     pub hit_areas: Vec<HitArea>,
     pub layout: Option<Layout>,
 }
@@ -45,7 +45,6 @@ pub struct FileReferences {
     pub expressions: Vec<Expression>,
     #[serde(default)]
     pub motions: Motions,
-    #[serde(rename = "UserData")]
     pub user_data: Option<PathBuf>,
 }
 
@@ -87,16 +86,10 @@ pub struct Motions {
 #[serde(rename_all = "PascalCase")]
 pub struct Motion {
     pub file: PathBuf,
-    #[serde(rename = "FadeInTime", default = "Motion::fade_time_default")]
+    #[serde(rename = "FadeInTime", default = "super::float_1")]
     pub fade_in_time: f32,
-    #[serde(rename = "FadeOutTime", default = "Motion::fade_time_default")]
+    #[serde(rename = "FadeOutTime", default = "super::float_1")]
     pub fade_out_time: f32,
-}
-
-impl Motion {
-    fn fade_time_default() -> f32 {
-        1.0
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

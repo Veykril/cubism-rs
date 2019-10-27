@@ -18,20 +18,15 @@ pub struct Meta {
     #[serde(rename = "AreBeziersRestricted")]
     pub restricted_beziers: bool,
     /// A number of curves that the motion3.json file has.
-    #[serde(rename = "CurveCount")]
-    pub len_curves: usize,
+    pub curve_count: usize,
     /// A number of segments that the motion3.json file has.
-    #[serde(rename = "TotalSegmentCount")]
-    pub len_segments: usize,
+    pub total_segment_count: usize,
     /// A number of points that the motion3.json file has.
-    #[serde(rename = "TotalPointCount")]
-    pub len_points: usize,
+    pub total_point_count: usize,
     /// A number of user data fields that the motion3.json file has.
-    #[serde(rename = "UserDataCount")]
-    pub len_user_data: usize,
+    pub user_data_count: usize,
     /// A total size of user data.
-    #[serde(rename = "TotalUserDataSize")]
-    pub size_user_data: usize,
+    pub total_user_data_size: usize,
 }
 
 /// Point.
@@ -192,15 +187,11 @@ pub struct Curve {
     #[serde(with = "segment_parser")]
     pub segments: Vec<Segment>,
     /// Fade-in time. 1.0 [sec] as default.
-    #[serde(default = "fade_time_default")]
+    #[serde(default = "super::float_1")]
     pub fade_in_time: f32,
     /// Fade-out time. 1.0 [sec] as default.
-    #[serde(default = "fade_time_default")]
+    #[serde(default = "super::float_1")]
     pub fade_out_time: f32,
-}
-
-fn fade_time_default() -> f32 {
-    1.0
 }
 
 /// Rust structure representation for Motion3.
@@ -213,6 +204,8 @@ pub struct Motion3 {
     pub meta: Meta,
     /// Curves.
     pub curves: Vec<Curve>,
+    #[serde(default)]
+    pub user_data: Vec<MotionUserData>,
 }
 
 impl Motion3 {
@@ -231,6 +224,13 @@ impl FromStr for Motion3 {
     fn from_str(s: &str) -> serde_json::Result<Self> {
         serde_json::from_str(s)
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct MotionUserData {
+    pub time: f32,
+    pub value: String,
 }
 
 #[test]

@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize};
 
 use std::str::FromStr;
+
 /// Rust structure representation for .physics3.json file.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
@@ -16,11 +17,9 @@ pub struct Physics3 {
 pub struct PhysicsSetting {
     id: String,
     #[serde(default)]
-    #[serde(rename = "Input")]
-    inputs: Vec<PhysicsInput>,
+    input: Vec<PhysicsInput>,
     #[serde(default)]
-    #[serde(rename = "Output")]
-    outputs: Vec<PhysicsOutput>,
+    output: Vec<PhysicsOutput>,
     #[serde(default)]
     vertices: Vec<PhysicsVertex>,
     normalization: Option<PhysicsNormalization>,
@@ -32,7 +31,7 @@ pub struct PhysicsInput {
     source: PhysicsTarget,
     weight: f32,
     #[serde(rename = "Type")]
-    input_type: String,
+    ty: String,
     reflect: bool,
 }
 
@@ -44,7 +43,7 @@ pub struct PhysicsOutput {
     scale: f32,
     weight: f32,
     #[serde(rename = "Type")]
-    input_type: String,
+    ty: String,
     reflect: bool,
 }
 
@@ -85,8 +84,7 @@ pub struct PhysicsTarget {
 pub struct Physics3Meta {
     total_input_count: usize,
     total_output_count: usize,
-    #[serde(rename = "VertexCount")]
-    total_vertices: usize,
+    vertex_count: usize,
     physics_setting_count: usize,
     effective_forces: EffectiveForces,
     physics_dictionary: Vec<PhysicsIdName>,

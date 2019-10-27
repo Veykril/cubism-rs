@@ -9,18 +9,10 @@ use std::str::FromStr;
 #[serde(rename_all = "PascalCase")]
 pub struct Expression3 {
     #[serde(rename = "Type")]
-    pub file_type: String,
-    #[serde(
-        rename = "FadeInTime",
-        deserialize_with = "super::de_fade_time",
-        default = "super::float_1"
-    )]
+    pub ty: String,
+    #[serde(deserialize_with = "super::de_fade_time", default = "super::float_1")]
     pub fade_in_time: f32,
-    #[serde(
-        rename = "FadeOutTime",
-        deserialize_with = "super::de_fade_time",
-        default = "super::float_1"
-    )]
+    #[serde(deserialize_with = "super::de_fade_time", default = "super::float_1")]
     pub fade_out_time: f32,
     pub parameters: Vec<ExpressionParameter>,
 }

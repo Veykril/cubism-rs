@@ -7,7 +7,6 @@ use std::str::FromStr;
 pub struct UserData3 {
     pub version: usize,
     pub meta: Meta,
-    #[serde(default, rename = "UserData")]
     pub user_data: Vec<UserData>,
 }
 
@@ -30,19 +29,24 @@ impl FromStr for UserData3 {
 }
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct Meta {
-    #[serde(rename = "UserDataCount")]
     pub user_data_count: usize,
-    #[serde(rename = "TotalUserDataSize")]
     pub total_user_data_size: usize,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct UserData {
-    pub target: String,
+    pub target: UserDataTarget,
     pub id: String,
     pub value: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum UserDataTarget {
+    ArtMesh,
 }
 
 #[test]

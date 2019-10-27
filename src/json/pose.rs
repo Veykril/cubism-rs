@@ -6,9 +6,9 @@ use std::str::FromStr;
 #[serde(rename_all = "PascalCase")]
 pub struct Pose3 {
     #[serde(rename = "Type")]
-    pub file_type: String,
+    pub ty: String,
     pub groups: Vec<PoseGroup>,
-    #[serde(rename = "FadeInTime", default = "Pose3::fade_in_time_default")]
+    #[serde(default = "Pose3::fade_in_time_default")]
     pub fade_in_time: f32,
 }
 
