@@ -1,16 +1,12 @@
 //! Motion.
 
-use std::{
-    fs,
-    ops::{Deref, DerefMut},
-    path::Path,
-};
+use std::fs;
+use std::ops::{Deref, DerefMut};
+use std::path::Path;
 
-use crate::{
-    core::Model,
-    error::CubismResult,
-    json::motion::{Motion3, Segment, SegmentPoint},
-};
+use crate::core::Model;
+use crate::error::CubismResult;
+use crate::json::motion::{Motion3, Segment, SegmentPoint};
 
 fn lerp_points(p0: SegmentPoint, p1: SegmentPoint, t: f32) -> SegmentPoint {
     SegmentPoint {

@@ -1,5 +1,6 @@
 /// Parses .physics3.json.
 use serde::{Deserialize, Serialize};
+
 use std::str::FromStr;
 /// Rust structure representation for .physics3.json file.
 #[derive(Clone, Debug, Deserialize, Serialize)]

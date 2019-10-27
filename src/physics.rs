@@ -1,4 +1,5 @@
-use crate::{core::Model, json::physics::Physics3};
+use crate::core::Model;
+use crate::json::physics::Physics3;
 
 pub struct Physics {
     wind: (f32, f32),

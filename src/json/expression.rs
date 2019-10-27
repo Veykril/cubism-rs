@@ -1,6 +1,7 @@
 // Parses .exp3.json.
 
 use serde::{Deserialize, Serialize};
+
 use std::str::FromStr;
 
 /// Rust structure representation for .exp3.json file.

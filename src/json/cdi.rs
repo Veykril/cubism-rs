@@ -1,5 +1,6 @@
 /// Parses .cdi3.json.
 use serde::{Deserialize, Serialize};
+
 use std::str::FromStr;
 
 /// Rust structure representation for .cdi3.json file.

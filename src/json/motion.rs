@@ -1,5 +1,6 @@
 //! Parses .motion3.json.
 use serde::{self, Deserialize, Serialize};
+
 use std::str::FromStr;
 
 /// Rust structure representation for Motion3 metadata.

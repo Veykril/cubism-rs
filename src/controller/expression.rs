@@ -1,7 +1,10 @@
-use cubism_core::Model;
 use fxhash::FxHashMap;
 
-use crate::{controller::Controller, expression::Expression, util::SimpleSlab};
+use cubism_core::Model;
+
+use crate::controller::Controller;
+use crate::expression::Expression;
+use crate::util::SimpleSlab;
 
 /// An ExpressionController is responsible for properly registering and
 /// switching between expressions of a model.

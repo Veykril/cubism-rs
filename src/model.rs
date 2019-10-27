@@ -3,12 +3,10 @@ use std::{fmt, fs, io, ops, path::Path};
 
 use cubism_core::Model;
 
-use crate::{
-    controller::{Controller, ControllerMap, ExpressionController, EyeBlink},
-    error::CubismResult,
-    expression::Expression,
-    json::model::{GroupTarget, Model3},
-};
+use crate::controller::{Controller, ControllerMap, ExpressionController, EyeBlink};
+use crate::error::CubismResult;
+use crate::expression::Expression;
+use crate::json::model::{GroupTarget, Model3};
 
 /// A UserModel that represents a functional parsed model3.json.
 pub struct UserModel {

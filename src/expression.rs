@@ -2,10 +2,9 @@
 
 use std::{fs, path::Path};
 
-use crate::{
-    error::CubismResult,
-    json::expression::{Expression3, ExpressionBlendType, ExpressionParameter},
-};
+use crate::error::CubismResult;
+use crate::json::expression::{Expression3, ExpressionBlendType, ExpressionParameter};
+
 use cubism_core::Model;
 
 /// A model expression.

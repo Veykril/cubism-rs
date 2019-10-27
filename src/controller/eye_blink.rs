@@ -1,5 +1,6 @@
-use crate::controller::Controller;
 use cubism_core::Model;
+
+use crate::controller::Controller;
 
 #[derive(Copy, Clone, Debug)]
 enum EyeState {
