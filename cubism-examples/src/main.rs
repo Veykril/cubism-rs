@@ -3,6 +3,8 @@ use imgui::{Condition, Context, FontConfig, FontSource, ImString};
 use imgui_glium_renderer::Renderer;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 
+use cubism::controller::ExpressionController;
+
 use std::{
     fs::File,
     io::Cursor,
@@ -93,9 +95,9 @@ fn main() {
         .iter()
         .map(|id| ImString::new(*id))
         .collect::<Vec<_>>();
-    let _exp_names = haru
-        .expressions()
-        .keys()
+    let expr_con = haru.controller::<ExpressionController>().unwrap();
+    let _exp_names = expr_con
+        .names()
         .map(|id| ImString::new(id))
         .chain(std::iter::once(ImString::new("__None__")))
         .collect::<Vec<_>>();
@@ -157,16 +159,17 @@ fn main() {
             .position([362.0, 20.0], Condition::Once)
             .size([300.0, 100.0], Condition::Once)
             .build(&ui, || {
+                let expr_con = haru.controller_mut::<ExpressionController>().unwrap();
                 if imgui::ComboBox::new(&str_char_expressions).build_simple_string(
                     &ui,
                     &mut current_expr,
                     &*exp_names,
                 ) {
-                    haru.set_expression(exp_names[current_expr as usize].to_str());
+                    expr_con.set_expression(exp_names[current_expr as usize].to_str());
                 }
                 imgui::Slider::new(&str_char_expressions_weight, 0.0..=1.0)
                     .build(&ui, &mut exp_weight);
-                haru.set_expression_weight(exp_weight);
+                expr_con.set_expression_weight(exp_weight);
             });
         haru.save_parameters();
         haru.update(delta_time);

@@ -1,12 +1,10 @@
 //! A UserModel that represents a functional parsed model3.json.
-use fxhash::FxHashMap;
-
 use std::{fmt, fs, io, ops, path::Path};
 
 use cubism_core::Model;
 
 use crate::{
-    controller::{ControllerMap, EyeBlink},
+    controller::{Controller, ControllerMap, ExpressionController, EyeBlink},
     error::CubismResult,
     expression::Expression,
     json::model::{GroupTarget, Model3},
@@ -17,10 +15,6 @@ pub struct UserModel {
     model: Model,
     // registered controllers
     controller_map: ControllerMap,
-    // loaded expressions
-    expressions: FxHashMap<String, Expression>,
-    current_expression: Option<String>,
-    expression_weight: f32,
     // saved snapshot of the models parameter for reloading
     parameter_snapshot: Box<[f32]>,
 }
@@ -32,9 +26,6 @@ impl UserModel {
         Self {
             model,
             controller_map: ControllerMap::new(),
-            expressions: FxHashMap::default(),
-            current_expression: None,
-            expression_weight: 1.0,
             parameter_snapshot,
         }
     }
@@ -54,21 +45,18 @@ impl UserModel {
             let model = Model::from_bytes(&fs::read(base.join(moc_path))?)?;
             let mut this = Self::new(model);
 
-            this.expressions = model3
-                .file_references
-                .expressions
-                .iter()
-                .map(|exp| {
-                    Ok((
-                        exp.name.clone(),
-                        Expression::from_exp3_json(&this.model, base.join(&exp.file))?,
-                    ))
-                })
-                .collect::<CubismResult<_>>()?;
+            let mut expr_con = ExpressionController::new();
+            for res in model3.file_references.expressions.iter().map(|exp| {
+                Expression::from_exp3_json(&this.model, base.join(&exp.file))
+                    .map(|expr| (exp.name.clone(), expr))
+            }) {
+                let (name, expr) = res?;
+                expr_con.register(name, expr);
+            }
+            this.controller_map.register(expr_con);
 
             if let Some(eye_blink) = Self::try_create_eye_blink(&this.model, model3) {
-                this.controller_map
-                    .insert(crate::id::groups::EYE_BLINK.to_owned(), eye_blink);
+                this.controller_map.register(eye_blink);
             }
 
             Ok(this)
@@ -112,54 +100,37 @@ impl UserModel {
             .swap_with_slice(self.model.parameter_values_mut());
     }
 
-    /// Loads an expression from a json file at the given path and adds it with
-    /// the given name. If an expression with the given name already exists it
-    /// will be replaced by the new one, returning the previous expression.
-    pub fn load_expressions<S: Into<String>, P: AsRef<Path>>(
-        &mut self,
-        name: S,
-        path: P,
-    ) -> CubismResult<Option<Expression>> {
-        Expression::from_exp3_json(&self.model, path)
-            .map(|exp| self.expressions.insert(name.into(), exp))
-    }
-
-    /// Set the current expression, if an expression by the given name doesnt
-    /// exist it will be set to apply no expression.
-    pub fn set_expression<S: Into<String>>(&mut self, exp: S) {
-        let exp = exp.into();
-        self.current_expression = if self.expressions.contains_key(&exp) {
-            Some(exp)
-        } else {
-            None
-        };
-    }
-
-    /// Sets the expression weight to apply.
-    /// Note: Weight will be bound between [0.0,1.0].
-    pub fn set_expression_weight(&mut self, weight: f32) {
-        self.expression_weight = weight.min(1.0).max(0.0);
-    }
-
-    /// The currently loaded expressions.
-    pub fn expressions(&self) -> &FxHashMap<String, Expression> {
-        &self.expressions
-    }
-
     /// Applies the expression(if set), runs the controllers in order and
     /// updates the model.
     pub fn update(&mut self, delta: f32) {
         self.load_parameters();
         // do motion update here
         self.save_parameters();
-        if let Some(exp) = self.current_expression.as_ref() {
-            if let Some(exp) = self.expressions.get(exp) {
-                exp.apply(&mut self.model, self.expression_weight);
-            }
-        }
         self.controller_map
             .update_enabled_controllers(&mut self.model, delta);
         self.model.update();
+    }
+
+    /// The controller map of this model.
+    pub fn controllers_map(&self) -> &ControllerMap {
+        &self.controller_map
+    }
+
+    /// The controller map of this model.
+    pub fn controllers_map_mut(&mut self) -> &mut ControllerMap {
+        &mut self.controller_map
+    }
+
+    /// Returns a reference to the controller of the type if it exists in this
+    /// model.
+    pub fn controller<C: Controller>(&self) -> Option<&C> {
+        self.controller_map.get::<C>()
+    }
+
+    /// Returns a mutable reference to the controller of the type if it exists
+    /// in this model.
+    pub fn controller_mut<C: Controller>(&mut self) -> Option<&mut C> {
+        self.controller_map.get_mut::<C>()
     }
 
     /// The underlying core model.

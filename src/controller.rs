@@ -1,9 +1,12 @@
 //! Controller definitions.
-use fixedbitset::FixedBitSet;
 use fxhash::FxHashMap;
+
+use std::any::TypeId;
 
 use cubism_core::Model;
 
+mod expression;
+pub use self::expression::ExpressionController;
 mod eye_blink;
 pub use self::eye_blink::EyeBlink;
 
@@ -11,11 +14,13 @@ pub use self::eye_blink::EyeBlink;
 pub mod default_priorities {
     /// The eyeblink controller priority.
     pub const EYE_BLINK: usize = 100;
+    /// The eyeblink controller priority.
+    pub const EXPRESSION: usize = 200;
 }
 
 /// The controller trait. A controller is an object that modifies a models
 /// parameter and part values in a defined fashion.
-pub trait Controller {
+pub trait Controller: 'static {
     /// Run the controller on the passed [`Model`].
     fn update_parameters(&mut self, model: &mut Model, delta: f32);
     /// The execution priority of this controller. The smallest value has the
@@ -23,158 +28,114 @@ pub trait Controller {
     fn priority(&self) -> usize;
 }
 
-/// A simple wrapper around a vec that returns the index of newly
-/// pushed/inserted elements and allows holes to exist.
-struct SimpleSlab {
-    buf: Vec<Option<Box<dyn Controller>>>,
-    last_free: usize,
-}
-
-impl SimpleSlab {
-    fn push(&mut self, c: Box<dyn Controller + 'static>) -> usize {
-        let len = self.buf.len();
-        if len <= self.last_free {
-            let ret = self.buf.len();
-            self.buf.push(Some(c));
-            self.last_free = len;
-            ret
-        } else {
-            let ret = self.last_free;
-            self.buf[self.last_free].replace(c);
-            self.last_free = self.buf[self.last_free..]
-                .iter()
-                .position(|c| c.is_none())
-                .map(|pos| pos + self.last_free)
-                .unwrap_or(len);
-            ret
-        }
+impl dyn Controller {
+    unsafe fn downcast_ref_unchecked<C: Controller>(&self) -> &C {
+        &*(self as *const Self as *const C)
     }
-
-    fn take(&mut self, idx: usize) -> Option<Box<dyn Controller + 'static>> {
-        if idx < self.last_free {
-            self.last_free = idx;
-        }
-        self.buf.get_mut(idx).and_then(Option::take)
+    unsafe fn downcast_mut_unchecked<C: Controller>(&mut self) -> &mut C {
+        &mut *(self as *mut Self as *mut C)
     }
-
-    fn get(&self, idx: usize) -> Option<&dyn Controller> {
-        self.buf.get(idx).and_then(|c| c.as_ref().map(|c| &**c))
-    }
-
-    fn get_mut(&mut self, idx: usize) -> Option<&mut (dyn Controller + 'static)> {
-        self.buf
-            .get_mut(idx)
-            .and_then(|c| c.as_mut().map(|c| &mut **c))
-    }
-
-    fn iter(&self) -> impl Iterator<Item = &dyn Controller> {
-        self.buf
-            .iter()
-            .flat_map(|con| con.as_ref().map(|con| &**con))
-    }
-
-    fn iter_mut(&mut self) -> impl Iterator<Item = &mut (dyn Controller + 'static)> {
-        self.buf
-            .iter_mut()
-            .flat_map(|con| con.as_mut().map(|con| &mut **con))
+    unsafe fn downcast_unchecked<C: Controller>(self: Box<Self>) -> Box<C> {
+        Box::from_raw(Box::into_raw(self) as *mut C)
     }
 }
 
-/// A ControllerMap maps names to [`Controller`]s and tracking their enabled
-/// state.
+/// A ControllerMap is basically a typemap over [`Controller`]s, it only allows
+/// one controller per type to exist and tracks their enabled status.
 pub struct ControllerMap {
-    controllers: SimpleSlab,
-    name_map: FxHashMap<String, usize>,
-    enabled: FixedBitSet,
+    map: FxHashMap<TypeId, (Box<dyn Controller>, bool)>,
 }
 
 impl ControllerMap {
     /// Creates a new empty controller map.
     pub fn new() -> Self {
         ControllerMap {
-            controllers: SimpleSlab {
-                buf: Vec::new(),
-                last_free: 0,
-            },
-            name_map: FxHashMap::with_hasher(Default::default()),
-            enabled: FixedBitSet::with_capacity(0),
+            map: FxHashMap::with_hasher(Default::default()),
         }
     }
 
-    /// Inserts a new controller into the map with the name, unregistering
-    /// and returning back the previous controller under the same name if it
-    /// exists.
-    pub fn insert<C: Controller + 'static>(
-        &mut self,
-        name: impl Into<String>,
-        controller: C,
-    ) -> Option<Box<dyn Controller>> {
-        let index = self.controllers.push(Box::new(controller));
-        if self.enabled.len() <= index {
-            self.enabled.grow(self.enabled.len() + 1);
-        }
-        self.enabled.set(index, true);
-        self.name_map
-            .insert(name.into(), index)
-            .and_then(|old| self.controllers.take(old))
+    /// Registers a new controller, unregistering and returning back the
+    /// previous controller of the same type if it exists.
+    pub fn register<C: Controller>(&mut self, controller: C) -> Option<Box<C>> {
+        let controller: Box<dyn Controller> = Box::new(controller);
+        self.map
+            .insert(TypeId::of::<C>(), (controller, true))
+            .map(|(old, _)| unsafe { old.downcast_unchecked() })
     }
 
-    /// Removes and returns the controller corresponding to the name.
-    pub fn remove(&mut self, name: &str) -> Option<Box<dyn Controller>> {
-        self.name_map
-            .remove(name)
-            .and_then(|old| self.controllers.take(old))
+    /// Removes and returns the controller of the type if it exists in the map.
+    pub fn remove<C: Controller>(&mut self) -> Option<Box<C>> {
+        self.map
+            .remove(&TypeId::of::<C>())
+            .map(|(old, _)| unsafe { old.downcast_unchecked() })
     }
 
-    /// Returns a reference to the controller corresponding to the name.
-    pub fn get(&self, name: &str) -> Option<&dyn Controller> {
-        self.name_map
-            .get(name)
-            .and_then(|idx| self.controllers.get(*idx))
+    /// Returns a reference to the controller of the type if it exists in the
+    /// map.
+    pub fn get<C: Controller>(&self) -> Option<&C> {
+        self.map
+            .get(&TypeId::of::<C>())
+            .map(|(con, _)| unsafe { (&**con).downcast_ref_unchecked() })
     }
 
-    /// Returns a mutable reference to the controller corresponding to the name.
-    pub fn get_mut(&mut self, name: &str) -> Option<&mut (dyn Controller + 'static)> {
-        self.name_map
-            .get(name)
-            .copied()
-            .and_then(move |idx| self.controllers.get_mut(idx))
+    /// Returns a mutable reference to the controller of the type if it exists
+    /// in the map.
+    pub fn get_mut<C: Controller>(&mut self) -> Option<&mut C> {
+        self.map
+            .get_mut(&TypeId::of::<C>())
+            .map(|(con, _)| unsafe { (&mut **con).downcast_mut_unchecked() })
     }
 
-    /// Enables or disables the controller corresponding to the name.
-    pub fn set_enabled(&mut self, name: &str, enabled: bool) {
-        if let Some(&pos) = self.name_map.get(name) {
-            self.enabled.set(pos, enabled);
+    /// Enables or disables the controller of the type. Does nothing if there is
+    /// no controller registered under the type.
+    pub fn set_enabled<C: Controller>(&mut self, enabled: bool) {
+        if let Some((_, en)) = self.map.get_mut(&TypeId::of::<C>()) {
+            *en = enabled;
         }
     }
 
-    /// Returns true if the controller corresponding to the name is enabled,
-    /// false otherwise.
-    pub fn is_enabled(&self, name: &str) -> bool {
-        self.name_map
-            .get(name)
-            .map(|idx| self.enabled[*idx])
+    /// Returns true whether the controller is enabled or not. If it doesn't
+    /// exist it returns false.
+    pub fn is_enabled<C: Controller>(&self) -> bool {
+        self.map
+            .get(&TypeId::of::<C>())
+            .map(|&(_, enabled)| enabled)
             .unwrap_or(false)
+    }
+
+    /// Checks whether the controller type has been registered or not.
+    pub fn is_registered<C: Controller>(&self) -> bool {
+        self.map.contains_key(&TypeId::of::<C>())
     }
 
     /// Returns an iterator over the enabled controllers.
     pub fn enabled_controllers<'this>(
         &'this self,
     ) -> impl Iterator<Item = &'this dyn Controller> + 'this {
-        self.controllers
-            .iter()
-            .zip(BitIter::from_bitset(&self.enabled))
-            .filter_map(|(con, enab)| if enab { Some(con) } else { None })
+        self.map
+            .values()
+            .filter_map(|&(ref con, enabled)| if enabled { Some(&**con) } else { None })
     }
 
     /// Returns an iterator over the enabled controllers.
     pub fn enabled_controllers_mut<'this>(
         &'this mut self,
-    ) -> impl Iterator<Item = &'this mut (dyn Controller + 'static)> + 'this {
-        self.controllers
-            .iter_mut()
-            .zip(BitIter::from_bitset(&self.enabled))
-            .filter_map(|(con, enab)| if enab { Some(con) } else { None })
+    ) -> impl Iterator<Item = &'this mut dyn Controller> + 'this {
+        self.map
+            .values_mut()
+            .filter_map(|&mut (ref mut con, enabled)| if enabled { Some(&mut **con) } else { None })
+    }
+
+    /// Returns an iterator over the controllers in this map.
+    pub fn controllers<'this>(&'this self) -> impl Iterator<Item = &'this dyn Controller> + 'this {
+        self.map.values().map(|(con, _)| &**con)
+    }
+
+    /// Returns an iterator over the controllers in this map.
+    pub fn controllers_mut<'this>(
+        &'this mut self,
+    ) -> impl Iterator<Item = &'this mut dyn Controller> + 'this {
+        self.map.values_mut().map(|(con, _)| &mut **con)
     }
 
     /// Calls [`update_parameters`] on every enabled controller in the order of
@@ -191,50 +152,5 @@ impl ControllerMap {
 impl Default for ControllerMap {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-const BITS: usize = 32;
-
-struct BitIter<'a> {
-    last_block_len: usize,
-    current_block_shift: usize,
-    remaining_blocks: &'a [u32],
-    current_block: u32,
-}
-
-impl<'a> BitIter<'a> {
-    fn from_bitset(set: &'a FixedBitSet) -> Self {
-        let (&current_block, remaining_blocks) = set.as_slice().split_first().unwrap_or((&0, &[]));
-        BitIter {
-            last_block_len: set.len() % BITS,
-            current_block_shift: 0,
-            current_block,
-            remaining_blocks,
-        }
-    }
-}
-
-impl<'a> Iterator for BitIter<'a> {
-    type Item = bool;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.remaining_blocks.is_empty() && self.current_block_shift == self.last_block_len {
-            return None;
-        } else if self.current_block_shift == BITS {
-            match self.remaining_blocks.split_first() {
-                Some((&next_block, rest)) => {
-                    self.remaining_blocks = rest;
-                    self.current_block_shift = 0;
-                    self.current_block = next_block;
-                },
-                None => unreachable!(),
-            }
-        }
-        let ret = (self.current_block & 1) == 1;
-        self.current_block >>= 1;
-        self.current_block_shift += 1;
-        Some(ret)
     }
 }
