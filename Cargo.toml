@@ -24,4 +24,4 @@ default = ["static-link"]
 static-link = ["cubism-core/static-link"]
 
 [workspace]
-members = ["cubism-core-sys", "cubism-core", "cubism-core-glium-renderer", "cubism-examples", "cubism-core-piston2d-renderer"]
+members = ["cubism-core-sys", "cubism-core", "cubism-examples", "cubism-core-wgpu-renderer",]

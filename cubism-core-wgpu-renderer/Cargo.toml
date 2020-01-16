@@ -1,5 +1,5 @@
 [package]
-name = "cubism-core-glium-renderer"
+name = "cubism-core-wgpu-renderer"
 version = "0.1.0"
 authors = ["Lukas Wirth <lukastw97@gmail.com>"]
 edition = "2018"
@@ -9,5 +9,4 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 cubism-core = { path = "../cubism-core", version = "0.1.0" }
-glium = "^0.25"
-mint = "^0.5"
+wgpu = "0.4"

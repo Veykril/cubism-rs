@@ -6,16 +6,14 @@ edition = "2018"
 publish = false
 
 [[bin]]
-name = "testing"
-path = "src/main.rs"
+name = "display"
+path = "src/display.rs"
 
 [dependencies]
 cubism = { path = "..", version = "0.1.0" }
-cubism-core-glium-renderer = { version = "0.1.0", path = "../cubism-core-glium-renderer"}
-
-glium = "^0.25"
-image = "^0.22"
-
-imgui = "^0.2"
-imgui-winit-support = "^0.2"
-imgui-glium-renderer = "^0.2"
+cubism-core-wgpu-renderer = { version = "0.1.0", path = "../cubism-core-wgpu-renderer"}
+env_logger = "0.7"
+log = "0.4"
+image = { version = "^0.22", default-features = false, features = ["png_codec"] }
+wgpu = "0.4"
+winit = "0.20"
